@@ -1,0 +1,620 @@
+# packages/energy_calculations.yaml
+#
+# Grid, solar-power and battery calculations for the Energy dashboard.
+# Loaded via configuration.yaml:
+#   homeassistant.packages: !include_dir_named packages
+#
+# PV energy copies and NextEnergy / Frank Energie prices stay in templates.yaml.
+# Derivative helpers and the Riemann sums of charge power stay in
+# configuration.yaml (the derivative sensors have no unique_id).
+#
+# Triggers use `to: null`: fire when the source state string changes, including
+# to unavailable, and skip attribute-only updates. A bare state trigger would
+# also run on attribute changes and would not reduce load.
+# `homeassistant` start re-reads external sources after reboot so a restored
+# number is not kept after the source is unknown.
+#
+# These look similar but are not the same quantity. Entity ids are unchanged:
+# - sensor.grid_power_net (Dutch DSMR kW, times 1000)
+#   vs sensor.net_energy_consumption (English DSMR W)
+# - sensor.grid_import_energy_total / sensor.grid_export_energy_total
+#   vs the filtered English tarif sums (those reject a drop or a >1 kWh step)
+# - sensor.marstek_combined_total_grid_export (alpha+beta MQTT `energy`)
+#   vs sensor.marstek_combined_total_grid_export_clean (combined returnEnergy, guarded)
+# - sensor.marstek_combined_total_grid_import (sum of the Riemann charge integrals)
+#   vs sensor.marstek_combined_total_grid_import_clean (sensor.evcc_marstek_combined_energy, guarded)
+# - sensor.marstek_combined_grid_power (EVCC MQTT, sign -1)
+#   vs sensor.marstek_total_ac_power (Venus Modbus)
+# - sensor.eigen_verbruik (solar + net) vs sensor.own_usage_power (solar + grid import + battery)
+
+utility_meter:
+  marstek_venus_beta_modbus_dagelijkse_ontlaadenergie:
+    source: sensor.marstek_venus_beta_modbus_totale_ontlaadenergie
+    cycle: daily
+    name: "Marstek Venus Beta Ontladen Vandaag"
+  marstek_venus_beta_modbus_dagelijkse_oplaadenergie:
+    source: sensor.marstek_venus_beta_modbus_totale_oplaadenergie
+    cycle: daily
+    name: "Marstek Venus Beta Opladen Vandaag"
+
+template:
+  # --- EVCC battery power. EVCC: + = ontladen, - = laden ---
+  - triggers:
+      - trigger: state
+        entity_id: sensor.evcc_marstek_alpha_power
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "EVCC Marstek alpha charge power"
+        unique_id: evcc_marstek_alpha_charge_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: "{{ is_number(states('sensor.evcc_marstek_alpha_power')) }}"
+        state: "{{ [0, -(states('sensor.evcc_marstek_alpha_power') | float(0))] | max }}"
+
+      - name: "EVCC Marstek alpha discharge power"
+        unique_id: evcc_marstek_alpha_discharge_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: "{{ is_number(states('sensor.evcc_marstek_alpha_power')) }}"
+        state: "{{ [0, states('sensor.evcc_marstek_alpha_power') | float(0)] | max }}"
+
+  - triggers:
+      - trigger: state
+        entity_id: sensor.evcc_marstek_beta_power
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "EVCC Marstek beta charge power"
+        unique_id: evcc_marstek_beta_charge_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: "{{ is_number(states('sensor.evcc_marstek_beta_power')) }}"
+        state: "{{ [0, -(states('sensor.evcc_marstek_beta_power') | float(0))] | max }}"
+
+      - name: "EVCC Marstek beta discharge power"
+        unique_id: evcc_marstek_beta_discharge_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: "{{ is_number(states('sensor.evcc_marstek_beta_power')) }}"
+        state: "{{ [0, states('sensor.evcc_marstek_beta_power') | float(0)] | max }}"
+
+  # sign = -1: zelfde teken als oude Marstek-sensor (laden = +). Zet op 1 als het omgekeerd blijkt.
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.evcc_marstek_alpha_power
+          - sensor.evcc_marstek_beta_power
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Marstek Combined Grid Power"
+        unique_id: marstek_combined_grid_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ is_number(states('sensor.evcc_marstek_alpha_power'))
+             and is_number(states('sensor.evcc_marstek_beta_power')) }}
+        state: >
+          {% set sign = -1 %}
+          {% set alpha = states('sensor.evcc_marstek_alpha_power') | float(0) %}
+          {% set beta  = states('sensor.evcc_marstek_beta_power') | float(0) %}
+          {{ ((alpha + beta) * sign) | round(0) }}
+
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.evcc_marstek_alpha_grid_export
+          - sensor.evcc_marstek_beta_grid_export
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Marstek Combined Total Grid Export"
+        unique_id: marstek_combined_total_grid_export
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >
+          {{ is_number(states('sensor.evcc_marstek_alpha_grid_export'))
+             and is_number(states('sensor.evcc_marstek_beta_grid_export')) }}
+        state: >
+          {% set alpha = states('sensor.evcc_marstek_alpha_grid_export') | float(0) %}
+          {% set beta  = states('sensor.evcc_marstek_beta_grid_export') | float(0) %}
+          {{ (alpha + beta) | round(3) }}
+
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.evcc_marstek_alpha_grid_import
+          - sensor.evcc_marstek_beta_grid_import
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Marstek Combined Total Grid Import"
+        unique_id: marstek_combined_total_grid_import
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >
+          {{ is_number(states('sensor.evcc_marstek_alpha_grid_import'))
+             and is_number(states('sensor.evcc_marstek_beta_grid_import')) }}
+        state: >
+          {% set alpha = states('sensor.evcc_marstek_alpha_grid_import') | float(0) %}
+          {% set beta  = states('sensor.evcc_marstek_beta_grid_import') | float(0) %}
+          {{ (alpha + beta) | round(3) }}
+
+  # Guarded counters. Same rule as the old 30 s poll: ignore a missing source,
+  # never emit a decrease, never emit a step above 0.25 kWh.
+  # The cap is applied to each source update (EVCC's own publish), not to a
+  # clock tick, so an unchanged counter no longer renders every 30 s.
+  # sensor.evcc_marstek_combined_energy is not defined in mqtt.yaml (the
+  # combined returnEnergy sensor is). The clean import stays wired to that
+  # entity_id so a UI-created sensor keeps working.
+  - triggers:
+      - trigger: state
+        entity_id: sensor.evcc_marstek_combined_returnenergy
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Marstek Combined Total Grid Export Clean"
+        unique_id: marstek_combined_total_grid_export_clean
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >
+          {{ is_number(states('sensor.evcc_marstek_combined_returnenergy'))
+             or is_number(this.state) }}
+        state: >
+          {% set e = states('sensor.evcc_marstek_combined_returnenergy') %}
+          {% set previous = this.state %}
+          {% if is_number(e) %}
+            {% set candidate = e | float | round(3) %}
+            {% if not is_number(previous) %}
+              {{ candidate }}
+            {% else %}
+              {% set delta = candidate - (previous | float) %}
+              {{ candidate if 0 <= delta <= 0.25 else previous }}
+            {% endif %}
+          {% else %}
+            {{ previous if is_number(previous) else none }}
+          {% endif %}
+        attributes:
+          guard_status: >
+            {% set e = states('sensor.evcc_marstek_combined_returnenergy') %}
+            {% if not is_number(e) %}
+              source_unavailable
+            {% elif not is_number(this.state) %}
+              initializing
+            {% else %}
+              {% set delta = (e | float | round(3)) - (this.state | float) %}
+              {% if delta < 0 %}rejected_decrease{% elif delta > 0.25 %}rejected_jump{% else %}ok{% endif %}
+            {% endif %}
+          raw_combined_kwh: >
+            {% set e = states('sensor.evcc_marstek_combined_returnenergy') %}
+            {{ e | float | round(3) if is_number(e) else none }}
+          max_step_kwh: 0.25
+
+  - triggers:
+      - trigger: state
+        entity_id: sensor.evcc_marstek_combined_energy
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Marstek Combined Total Grid Import Clean"
+        unique_id: marstek_combined_total_grid_import_clean
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >
+          {{ is_number(states('sensor.evcc_marstek_combined_energy'))
+             or is_number(this.state) }}
+        state: >
+          {% set e = states('sensor.evcc_marstek_combined_energy') %}
+          {% set previous = this.state %}
+          {% if is_number(e) %}
+            {% set candidate = e | float | round(3) %}
+            {% if not is_number(previous) %}
+              {{ candidate }}
+            {% else %}
+              {% set delta = candidate - (previous | float) %}
+              {{ candidate if 0 <= delta <= 0.25 else previous }}
+            {% endif %}
+          {% else %}
+            {{ previous if is_number(previous) else none }}
+          {% endif %}
+        attributes:
+          guard_status: >
+            {% set e = states('sensor.evcc_marstek_combined_energy') %}
+            {% if not is_number(e) %}
+              source_unavailable
+            {% elif not is_number(this.state) %}
+              initializing
+            {% else %}
+              {% set delta = (e | float | round(3)) - (this.state | float) %}
+              {% if delta < 0 %}rejected_decrease{% elif delta > 0.25 %}rejected_jump{% else %}ok{% endif %}
+            {% endif %}
+          raw_combined_kwh: >
+            {% set e = states('sensor.evcc_marstek_combined_energy') %}
+            {{ e | float | round(3) if is_number(e) else none }}
+          max_step_kwh: 0.25
+
+  # Slimme meter, English DSMR tarif entities. Hold the last total when the
+  # new sum drops or jumps by more than 1 kWh. Trigger-based so `this.state`
+  # is the previous total and the sensor does not listen to itself.
+  # Availability stays up while a previous total exists, including when a
+  # tarif source blips. With no previous total and a non-numeric source the
+  # entity is unavailable instead of recording 0.
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.electricity_meter_energy_production_tarif_1
+          - sensor.electricity_meter_energy_production_tarif_2
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Electricity Total Energy Production Filtered"
+        unique_id: electricity_total_energy_production_filtered
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >
+          {{ (is_number(states('sensor.electricity_meter_energy_production_tarif_1'))
+              and is_number(states('sensor.electricity_meter_energy_production_tarif_2')))
+             or is_number(this.state) }}
+        state: >
+          {% set t1 = states('sensor.electricity_meter_energy_production_tarif_1') | float(0) %}
+          {% set t2 = states('sensor.electricity_meter_energy_production_tarif_2') | float(0) %}
+          {% set new = (t1 + t2) | round(3) %}
+          {% set old_str = this.state %}
+          {% if old_str in ['unknown', 'unavailable', 'none', ''] %}
+            {{ new }}
+          {% else %}
+            {% set old = old_str | float(new) %}
+            {% if new < old or (new - old) > 1 %}
+              {{ old }}
+            {% else %}
+              {{ new }}
+            {% endif %}
+          {% endif %}
+
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.electricity_meter_energy_consumption_tarif_1
+          - sensor.electricity_meter_energy_consumption_tarif_2
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Electricity Total Energy Consumption Filtered"
+        unique_id: electricity_total_energy_consumption_filtered
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >
+          {{ (is_number(states('sensor.electricity_meter_energy_consumption_tarif_1'))
+              and is_number(states('sensor.electricity_meter_energy_consumption_tarif_2')))
+             or is_number(this.state) }}
+        state: >
+          {% set t1 = states('sensor.electricity_meter_energy_consumption_tarif_1') | float(0) %}
+          {% set t2 = states('sensor.electricity_meter_energy_consumption_tarif_2') | float(0) %}
+          {% set new = (t1 + t2) | round(3) %}
+          {% set old_str = this.state %}
+          {% if old_str in ['unknown', 'unavailable', 'none', ''] %}
+            {{ new }}
+          {% else %}
+            {% set old = old_str | float(new) %}
+            {% if new < old or (new - old) > 1 %}
+              {{ old }}
+            {% else %}
+              {{ new }}
+            {% endif %}
+          {% endif %}
+
+  # Dutch-named DSMR entities. Not the same objects as the English tarif sensors above.
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.electricity_meter_energieverbruik_tarief_1
+          - sensor.electricity_meter_energieverbruik_tarief_2
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Grid Import Energy Total"
+        unique_id: grid_import_energy_total
+        icon: mdi:transmission-tower-import
+        device_class: energy
+        state_class: total_increasing
+        unit_of_measurement: kWh
+        availability: >-
+          {{ is_number(states('sensor.electricity_meter_energieverbruik_tarief_1'))
+             and is_number(states('sensor.electricity_meter_energieverbruik_tarief_2')) }}
+        state: >-
+          {{ (states('sensor.electricity_meter_energieverbruik_tarief_1') | float(0)
+              + states('sensor.electricity_meter_energieverbruik_tarief_2') | float(0)) | round(3) }}
+
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.electricity_meter_energieproductie_tarief_1
+          - sensor.electricity_meter_energieproductie_tarief_2
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Grid Export Energy Total"
+        unique_id: grid_export_energy_total
+        icon: mdi:transmission-tower-export
+        device_class: energy
+        state_class: total_increasing
+        unit_of_measurement: kWh
+        availability: >-
+          {{ is_number(states('sensor.electricity_meter_energieproductie_tarief_1'))
+             and is_number(states('sensor.electricity_meter_energieproductie_tarief_2')) }}
+        state: >-
+          {{ (states('sensor.electricity_meter_energieproductie_tarief_1') | float(0)
+              + states('sensor.electricity_meter_energieproductie_tarief_2') | float(0)) | round(3) }}
+
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.electricity_meter_energieverbruik
+          - sensor.electricity_meter_energieproductie
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Grid Power Net"
+        unique_id: grid_power_net
+        icon: mdi:transmission-tower
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: W
+        availability: >-
+          {{ is_number(states('sensor.electricity_meter_energieverbruik'))
+             and is_number(states('sensor.electricity_meter_energieproductie')) }}
+        state: >-
+          {{ ((states('sensor.electricity_meter_energieverbruik') | float(0)
+               - states('sensor.electricity_meter_energieproductie') | float(0)) * 1000) | round(0) }}
+
+  # --- DSMR power chain (English entity ids) ---
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.electricity_meter_power_consumption
+          - sensor.electricity_meter_power_production
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Netto Energieverbruik"
+        unique_id: net_energy_consumption
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ is_number(states('sensor.electricity_meter_power_consumption'))
+             and is_number(states('sensor.electricity_meter_power_production')) }}
+        state: >
+          {{ (states('sensor.electricity_meter_power_consumption') | float(0))
+             - (states('sensor.electricity_meter_power_production') | float(0)) }}
+
+  # One listener for the three splits of net_energy_consumption.
+  # No start trigger: they follow that sensor, including its start render.
+  - triggers:
+      - trigger: state
+        entity_id: sensor.net_energy_consumption
+        to: null
+    sensor:
+      - name: "Netto Energie Verbruik"
+        unique_id: net_energy_positive
+        unit_of_measurement: "W"
+        availability: "{{ is_number(states('sensor.net_energy_consumption')) }}"
+        state: >
+          {% set val = states('sensor.net_energy_consumption') | float(0) %}
+          {{ val if val > 0 else 0 }}
+
+      - name: "Netto Energie Teruglevering (negatief)"
+        unique_id: net_energy_negative
+        unit_of_measurement: "W"
+        availability: "{{ is_number(states('sensor.net_energy_consumption')) }}"
+        state: >
+          {% set val = states('sensor.net_energy_consumption') | float(0) %}
+          {{ val if val < 0 else 0 }}
+
+      - name: "Positieve Sensor"
+        unique_id: positieve_sensor
+        unit_of_measurement: "W"
+        availability: "{{ is_number(states('sensor.net_energy_consumption')) }}"
+        state: >
+          {% set netto = states('sensor.net_energy_consumption') | float(0) %}
+          {{ netto * -1 if netto < 0 else netto }}
+
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.goodwe_pv_power
+          - sensor.clamp_power_meter_vermogen
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Totale Zon Vermogen"
+        unique_id: total_solar_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {% set pv = [
+            'sensor.goodwe_pv_power',
+            'sensor.clamp_power_meter_vermogen',
+          ] %}
+          {{ pv | map('states') | select('is_number') | list | count > 0 }}
+        state: >
+          {% set pv = [
+            'sensor.goodwe_pv_power',
+            'sensor.clamp_power_meter_vermogen',
+          ] %}
+          {{ pv | map('states') | map('float', 0) | sum }}
+
+  # solar + net, including while exporting (net is negative).
+  # abs(net) replaces sensor.positieve_sensor so this does not wait for a second pass.
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.net_energy_consumption
+          - sensor.total_solar_power
+        to: null
+    sensor:
+      - name: "Eigen Verbruik"
+        unique_id: eigen_verbruik
+        unit_of_measurement: "W"
+        availability: >
+          {{ is_number(states('sensor.net_energy_consumption'))
+             and is_number(states('sensor.total_solar_power')) }}
+        state: >
+          {% set netto = states('sensor.net_energy_consumption') | float(0) %}
+          {% set opbrengst = states('sensor.total_solar_power') | float(0) %}
+          {% set positief = netto * -1 if netto < 0 else netto %}
+          {% if netto > 0 %}
+            {{ (opbrengst + positief) | round(0) }}
+          {% elif netto < 0 %}
+            {{ (opbrengst - positief) | round(0) }}
+          {% else %}
+            {{ opbrengst | round(0) }}
+          {% endif %}
+
+  # --- Venus Modbus battery totals. Add a 2nd battery to the list, the trigger and availability together. ---
+  - triggers:
+      - trigger: state
+        entity_id: sensor.marstek_venus_beta_modbus_ac_vermogen
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Marstek Total AC Power"
+        unique_id: marstek_total_ac_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {% set batteries = [
+            'sensor.marstek_venus_beta_modbus_ac_vermogen',
+          ] %}
+          {{ batteries | map('states') | select('is_number') | list | count == batteries | count }}
+        state: >
+          {% set batteries = [
+            'sensor.marstek_venus_beta_modbus_ac_vermogen',
+          ] %}
+          {{ batteries | map('states') | map('float', 0) | sum }}
+
+  - triggers:
+      - trigger: state
+        entity_id: sensor.marstek_venus_beta_modbus_batterij_soc
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Marstek Average Battery SoC"
+        unique_id: marstek_average_battery_soc
+        unit_of_measurement: "%"
+        device_class: battery
+        state_class: measurement
+        availability: >
+          {% set batteries = [
+            'sensor.marstek_venus_beta_modbus_batterij_soc',
+          ] %}
+          {{ batteries | map('states') | select('is_number') | list | count == batteries | count }}
+        state: >
+          {% set batteries = [
+            'sensor.marstek_venus_beta_modbus_batterij_soc',
+          ] %}
+          {{ (batteries | map('states') | map('float', 0) | list | sum / batteries | length) | round(1) }}
+
+  - triggers:
+      - trigger: state
+        entity_id: sensor.marstek_venus_beta_modbus_opgeslagen_energie
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Marstek Total Stored Energy"
+        unique_id: marstek_total_stored_energy
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: measurement
+        availability: >
+          {% set batteries = [
+            'sensor.marstek_venus_beta_modbus_opgeslagen_energie',
+          ] %}
+          {{ batteries | map('states') | select('is_number') | list | count == batteries | count }}
+        state: >
+          {% set batteries = [
+            'sensor.marstek_venus_beta_modbus_opgeslagen_energie',
+          ] %}
+          {{ (batteries | map('states') | map('float', 0) | sum) | round(2) }}
+
+  - triggers:
+      - trigger: state
+        entity_id: sensor.marstek_venus_beta_modbus_dagelijkse_ontlaadenergie
+        to: null
+      - trigger: homeassistant
+        event: start
+    sensor:
+      - name: "Marstek Total Discharging Energy Today"
+        unique_id: marstek_total_discharging_energy_today
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >
+          {% set batteries = [
+            'sensor.marstek_venus_beta_modbus_dagelijkse_ontlaadenergie',
+          ] %}
+          {{ batteries | map('states') | select('is_number') | list | count == batteries | count }}
+        state: >
+          {% set batteries = [
+            'sensor.marstek_venus_beta_modbus_dagelijkse_ontlaadenergie',
+          ] %}
+          {{ (batteries | map('states') | map('float', 0) | sum) | round(2) }}
+
+  - triggers:
+      - trigger: state
+        entity_id:
+          - sensor.total_solar_power
+          - sensor.net_energy_consumption
+          - sensor.marstek_total_ac_power
+        to: null
+    sensor:
+      - name: "Own Usage Power"
+        unique_id: own_usage_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ is_number(states('sensor.total_solar_power'))
+             and is_number(states('sensor.net_energy_consumption'))
+             and is_number(states('sensor.marstek_total_ac_power')) }}
+        state: >
+          {% set pv = states('sensor.total_solar_power') | float(0) %}
+          {% set grid = states('sensor.net_energy_consumption') | float(0) %}
+          {% set batt = states('sensor.marstek_total_ac_power') | float(0) %}
+
+          {% set net_import = max(0, grid) %}
+          {% set batt_discharge = max(0, batt) %}
+          {% set batt_charge = max(0, -batt) %}
+
+          {{ max(0, net_import + pv + batt_discharge - batt_charge) }}
