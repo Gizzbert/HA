@@ -1,0 +1,450 @@
+- id: '1677411831789'
+  alias: 'Lights: Dresser via rocker switch miniR2'
+  description: ''
+  triggers:
+  - entity_id:
+    - switch.minir2_living
+    to: 'on'
+    trigger: state
+  - entity_id:
+    - switch.minir2_living
+    to: 'off'
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.dresser
+        state: 'off'
+      sequence:
+      - metadata: {}
+        data: {}
+        target:
+          entity_id: input_boolean.dresser
+        action: input_boolean.turn_on
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.dresser
+        state: 'on'
+      sequence:
+      - metadata: {}
+        data: {}
+        target:
+          entity_id: input_boolean.dresser
+        action: input_boolean.turn_off
+  mode: single
+
+- id: '1677425775528'
+  alias: Vakantie - Anti inbraak lampje
+  description: ''
+  trigger:
+  - platform: sun
+    event: sunset
+  condition:
+  - condition: state
+    entity_id: input_boolean.vacation
+    state: 'on'
+  action:
+  - delay:
+      hours: 0
+      minutes: 47
+      seconds: 0
+      milliseconds: 0
+  - service: switch.turn_on
+    data: {}
+    target:
+      entity_id:
+      - switch.wifi_stopcontact_1
+  - delay:
+      hours: 1
+      minutes: 10
+      seconds: 0
+      milliseconds: 0
+  - service: switch.turn_off
+    data: {}
+    target:
+      entity_id:
+      - switch.wifi_stopcontact_1
+  mode: single
+
+- id: '1679511460100'
+  alias: 'Lights: master switch Living'
+  description: any change to device will reflect on boolean state and vv
+  triggers:
+  - entity_id:
+    - input_boolean.living
+    - switch.wifi_stopcontact_7
+    - switch.sf501a
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.wifi_stopcontact_7'')
+          }}'
+      sequence:
+      - target:
+          entity_id: switch.wifi_stopcontact_7
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.sf501a'') }}'
+      sequence:
+      - target:
+          entity_id: switch.sf501a
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.living'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.living
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+
+- id: '1680617045184'
+  alias: 'Light: smart switch veranda'
+  description: ''
+  trigger:
+  - platform: device
+    domain: mqtt
+    device_id: 5bbf38681c04d51385dae88fcac0ef14
+    type: action
+    subtype: single
+    discovery_id: 0xa4c138283ccf308f action_single
+  condition: []
+  action:
+  - service: light.toggle
+    target:
+      entity_id:
+      - light.veranda_dimmer_switch
+    data: {}
+  - service: notify.mobile_app_oneplus
+    data:
+      message: Veranda light toggled
+    enabled: true
+  mode: single
+
+- id: '1712004944449'
+  alias: 'Lights: Veranda'
+  description: ''
+  trigger:
+  - platform: sun
+    event: sunset
+    offset: 0
+  condition: []
+  action:
+  - service: input_boolean.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - input_boolean.party_lights
+      - input_boolean.veranda
+  - delay:
+      hours: 1
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  - service: input_boolean.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - input_boolean.party_lights
+      - input_boolean.veranda
+  mode: single
+
+- id: '1735900874777'
+  alias: 'Lights: master switch Dresser'
+  description: any change to device will reflect on boolean state and vv
+  triggers:
+  - entity_id:
+    - input_boolean.dresser
+    - switch.wifi_stopcontact_6_none
+    - switch.sf501b
+    - input_boolean.christmas_tree
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.wifi_stopcontact_6_none'')
+          }}'
+      sequence:
+      - target:
+          entity_id: switch.wifi_stopcontact_6_none
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.sf501b'') }}'
+      sequence:
+      - target:
+          entity_id: switch.sf501b
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.dresser'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.dresser
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.christmas_tree'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.christmas_tree
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+
+- id: '1735901313144'
+  alias: 'Lights: living lights'
+  description: Controls living room and dresser lights based on time of day and week
+  triggers:
+  - trigger: time
+    at: 06:40:00
+  - trigger: time
+    at: 08:00:00
+  - trigger: sun
+    event: sunset
+    offset: -00:15:00
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: time
+        weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+      - condition: sun
+        before: sunrise
+        before_offset: +00:20:00
+      - condition: time
+        after: 06:39:00
+        before: 06:41:00
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.dresser
+        data: {}
+      - wait_for_trigger:
+        - trigger: sun
+          event: sunrise
+          offset: +00:20:00
+      - condition: state
+        entity_id: input_boolean.xmas_override
+        state: 'off'
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.dresser
+        data: {}
+    - conditions:
+      - condition: time
+        weekday:
+        - sat
+        - sun
+      - condition: sun
+        before: sunrise
+        before_offset: +00:20:00
+      - condition: time
+        after: 07:59:00
+        before: 08:01:00
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.living
+        data: {}
+      - wait_for_trigger:
+        - trigger: sun
+          event: sunrise
+          offset: +00:20:00
+      - condition: state
+        entity_id: input_boolean.xmas_override
+        state: 'off'
+        enabled: true
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.living
+        data: {}
+    - conditions:
+      - condition: sun
+        after: sunset
+        after_offset: -00:16:00
+        before: sunset
+        before_offset: -00:14:00
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.living
+        data: {}
+      - wait_for_trigger:
+        - trigger: time
+          at: 00:30:00
+      - condition: state
+        entity_id: input_boolean.xmas_override
+        state: 'off'
+        enabled: false
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+          - input_boolean.living
+          - input_boolean.dresser
+        data: {}
+  mode: single
+
+- id: '1735902248404'
+  alias: 'Lights: master switch Party lights'
+  description: any change to device will reflect on boolean state and vv
+  triggers:
+  - entity_id:
+    - input_boolean.party_lights
+    - switch.wifi_stopcontact_8
+    - switch.sf501d
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.wifi_stopcontact_8'')
+          }}'
+      sequence:
+      - target:
+          entity_id: switch.wifi_stopcontact_8
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.sf501d'') }}'
+      sequence:
+      - target:
+          entity_id: switch.sf501d
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.party_lights'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.party_lights
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+
+- id: '1735905074513'
+  alias: 'Lights: master switch Veranda'
+  description: any change to device will reflect on boolean state and vv
+  triggers:
+  - entity_id:
+    - input_boolean.veranda
+    - light.veranda_dimmer_switch
+    - switch.sf501d
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''light.veranda_dimmer_switch'')
+          }}'
+      sequence:
+      - target:
+          entity_id: light.veranda_dimmer_switch
+        action: '{% if trigger.to_state.state == ''on'' %}light.turn_on{% else %}light.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.sf501d'') }}'
+      sequence:
+      - target:
+          entity_id: switch.sf501d
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.veranda'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.veranda
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+  mode: single
+
+- id: '1765522041369'
+  alias: 'Lights: Xmas'
+  description: ''
+  triggers:
+  - trigger: time
+    at: 06:39:00
+  - trigger: time
+    at: '15:00:00'
+  conditions: []
+  actions:
+  - action: input_boolean.turn_on
+    target:
+      entity_id:
+      - input_boolean.dresser
+      - input_boolean.party_lights
+      - input_boolean.xmaslights
+      - input_boolean.xmas_override
+    data: {}
+  - wait_for_trigger:
+    - trigger: time
+      at: '10:00:00'
+    - trigger: time
+      at: 00:30:00
+  - action: input_boolean.turn_off
+    target:
+      entity_id:
+      - input_boolean.dresser
+      - input_boolean.party_lights
+      - input_boolean.xmaslights
+      - input_boolean.xmas_override
+    data: {}
+  mode: single
+
+- id: '1765522927376'
+  alias: 'Lights: master switch Xmaslights'
+  description: any change to device will reflect on boolean state and vv for helper
+    and switch
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.xmaslights
+    - switch.wifi_stopcontact_8
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.wifi_stopcontact_8'')
+          }}'
+      sequence:
+      - action: "{% if trigger.to_state.state == 'on' %}\n  switch.turn_on\n{% else
+          %}\n  switch.turn_off\n{% endif %}\n"
+        target:
+          entity_id: switch.wifi_stopcontact_8
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.xmaslights'')
+          }}'
+      sequence:
+      - action: "{% if trigger.to_state.state == 'on' %}\n  input_boolean.turn_on\n{%
+          else %}\n  input_boolean.turn_off\n{% endif %}\n"
+        target:
+          entity_id: input_boolean.xmaslights
+  mode: single
+

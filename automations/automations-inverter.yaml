@@ -1,0 +1,137 @@
+- id: '1710795321873'
+  alias: Goodwe Update Pattern
+  description: ''
+  trigger:
+  - platform: time_pattern
+    seconds: /30
+  condition:
+  - condition: sun
+    before: sunset
+    after: sunrise
+    after_offset: -00:30:00
+  action:
+  - service: homeassistant.update_entity
+    metadata: {}
+    data: {}
+    target:
+      entity_id: sensor.pv_power
+  mode: single
+
+- id: '1711555664461'
+  alias: 'Alert: Goodwe temp > 55'
+  description: ''
+  triggers:
+  - entity_id:
+    - sensor.pv_temperature
+    above: 55
+    trigger: numeric_state
+  conditions: []
+  actions:
+  - metadata: {}
+    data:
+      message: 'HA: Goodwe boven 55 graden'
+    action: telegram_bot.send_message
+  - action: notify.mobile_app_seeker
+    metadata: {}
+    data:
+      message: Goodwe > 55 graden
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: 0
+      retain: false
+      topic: /openhab/notification/alert
+      payload: Goodwe > 55 graden
+  mode: single
+
+- id: '1773175708253'
+  alias: 'Inverter: Wifi stopcontact 5 aan/uit'
+  description: voor PV fan
+  triggers:
+  - trigger: time
+    at:
+      entity_id: sensor.sun_next_rising
+      offset: 02:00:00
+    id: on_time
+  - trigger: time
+    at:
+      entity_id: sensor.sun_next_setting
+      offset: -02:00:00
+    id: off_time
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: on_time
+      sequence:
+      - type: turn_on
+        device_id: b05ad76393852279c49f583b08483cba
+        entity_id: 2154e7f81822fb7d585326ec6452c665
+        domain: switch
+    - conditions:
+      - condition: trigger
+        id: off_time
+      sequence:
+      - type: turn_off
+        device_id: b05ad76393852279c49f583b08483cba
+        entity_id: 2154e7f81822fb7d585326ec6452c665
+        domain: switch
+  mode: single
+
+- id: '1778074207873'
+  alias: 'Inverter: GoodWe exportlimiet op prijs (met hysterese)'
+  description: Zet exportlimiet 0W bij sterk negatieve prijs, 10000W bij positieve
+    prijs, maar alleen als wijziging nodig is.
+  triggers:
+  - trigger: state
+    entity_id: sensor.current_electricity_price_all_in
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.current_electricity_price_all_in
+        below: -0.005
+      - condition: template
+        value_template: '{{ states(''number.goodwe_net_exportlimiet'') | float(0)
+          != 0 }}'
+      sequence:
+      - action: number.set_value
+        target:
+          entity_id: number.goodwe_net_exportlimiet
+        data:
+          value: 0
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.current_electricity_price_all_in
+        above: 0.005
+      - condition: template
+        value_template: '{{ states(''number.goodwe_net_exportlimiet'') | float(0)
+          != 10000 }}'
+      sequence:
+      - action: number.set_value
+        target:
+          entity_id: number.goodwe_net_exportlimiet
+        data:
+          value: 10000
+    default: []
+  mode: single
+
+- id: '1778091775421'
+  alias: 'Alert: GoodWe exportlimiet staat nog op 0 om 06:00'
+  description: ''
+  triggers:
+  - at: 06:00:00
+    trigger: time
+  conditions:
+  - condition: state
+    entity_id: number.goodwe_net_exportlimiet
+    state: '0'
+  actions:
+  - data:
+      topic: /openhab/notification/alert
+      payload: GoodWe exportlimiet staat om 06:00 nog op 0 W
+    action: mqtt.publish
+  mode: single

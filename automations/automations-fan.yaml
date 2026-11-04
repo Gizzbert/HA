@@ -1,0 +1,161 @@
+- id: '1679350655258'
+  alias: 'Fan: hum - day max'
+  description: ''
+  trigger:
+  - platform: mqtt
+    topic: home/rfm_gw/nb/node03/dev49
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.vocht_badkamer
+    above: 90
+  - condition: time
+    after: 08:00:00
+    before: '20:00:00'
+  action:
+  - service: input_select.select_option
+    data:
+      option: Douche
+    target:
+      entity_id: input_select.fan_level
+  - delay:
+      minutes: 25
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  mode: single
+
+- id: '1679350885909'
+  alias: 'Fan: hum - day high'
+  description: ''
+  trigger:
+  - platform: mqtt
+    topic: home/rfm_gw/nb/node03/dev49
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.vocht_badkamer
+    above: 75
+    below: 90
+  - condition: time
+    after: 07:00:00
+    before: '23:00:00'
+  action:
+  - service: input_select.select_option
+    data:
+      option: Hoog
+    target:
+      entity_id: input_select.fan_level
+  - delay:
+      minutes: 25
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  - if:
+    - condition: time
+      after: '23:00:00'
+      before: 07:00:00
+    then:
+    - service: input_select.select_option
+      metadata: {}
+      data:
+        option: Laag
+      target:
+        entity_id: input_select.fan_level
+  mode: single
+
+- id: '1679352348523'
+  alias: 'Fan: CO2 - day'
+  description: ''
+  trigger:
+  - platform: mqtt
+    topic: home/rfm_gw/nb/node02/dev65
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.co2_huiskamer
+    above: 1000
+  - condition: time
+    after: 07:00:00
+    before: '23:00:00'
+  action:
+  - service: input_select.select_option
+    data:
+      option: Hoog
+    target:
+      entity_id: input_select.fan_level
+  - delay:
+      minutes: 25
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  mode: single
+
+- id: '1679352695764'
+  alias: 'Fan: CO2 - night'
+  description: ''
+  trigger:
+  - platform: mqtt
+    topic: home/rfm_gw/nb/node02/dev65
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.co2_huiskamer
+    above: 1000
+  - condition: time
+    after: '23:00:00'
+    before: 07:00:00
+  action:
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  - delay:
+      minutes: 25
+  - if:
+    - condition: time
+      before: 07:00:00
+      after: '23:00:00'
+    then:
+    - service: input_select.select_option
+      data:
+        option: Laag
+  mode: single
+
+- id: '1679352825328'
+  alias: 'Fan: night'
+  description: ''
+  trigger:
+  - platform: time
+    at: '23:00:00'
+  condition: []
+  action:
+  - service: input_select.select_option
+    data:
+      option: Laag
+    target:
+      entity_id: input_select.fan_level
+  - wait_for_trigger:
+    - platform: time
+      at: 07:00:00
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  mode: single
+
+- id: set_fan_level
+  alias: Set Fan level
+  trigger:
+  - platform: state
+    entity_id: input_select.fan_level
+  action:
+  - service: mqtt.publish
+    data:
+      topic: home/rfm_gw/sb/node05/dev32
+      payload: "{% set map = {\n  'Laag': '1',\n  'Normaal': '2',\n  'Hoog': '3',\n
+        \ 'Douche': '4'\n} %} {{ map[trigger.to_state.state] }}\n"

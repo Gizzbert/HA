@@ -2,7 +2,7 @@
 default_config:
 
 ### Includes ###
-automation: !include automations.yaml
+automation: !include_dir_merge_list automations/
 mqtt: !include mqtt.yaml
 group: !include groups.yaml
 template: !include templates.yaml
@@ -110,54 +110,21 @@ sensor:
 
 
 #----------------------------------- COMMAND LINE -------------------#
-command_line:
 
-  - binary_sensor:
-      name: Raspi4 keepalive
-      unique_id: raspi4_keepalive
-      device_class: connectivity
-      command: 'curl -s -o /dev/null -w ''%{http_code}'' http://192.168.0.133:8123'
-      scan_interval: 300
-      value_template: >-
-        {% if value == "200" %}
-          on
-        {% else %}
-          off
-        {% endif %}
-
-  - binary_sensor:
-      name: Dietpi keepalive
-      unique_id: dietpi_keepalive
-      device_class: connectivity
-      command: 'curl -s -o /dev/null -w ''%{http_code}'' http://192.168.0.132:8123'
-      scan_interval: 300
-      value_template: >-
-        {% if value == "200" %}
-          on
-        {% else %}
-          off
-        {% endif %}
-
-  - binary_sensor:
-      name: Zigbee2MQTT keepalive
-      unique_id: zigbee2mqtt_keepalive
-      device_class: connectivity
-      command: 'curl -s -o /dev/null -w ''%{http_code}'' http://192.168.0.246:8088'
-      scan_interval: 300
-      value_template: >-
-        {% if value == "200" %}
-          on
-        {% else %}
-          off
-        {% endif %}
-
-### mmWave sensor ###
-  - binary_sensor:
-      name: mmWave check status
-      unique_id: mmwave_check_status
-      command: 'curl -fsS http://192.168.0.250/binary_sensor/mmwave_presence_ld2410'
-      scan_interval: 300
-      value_template: "{{ value_json.value | bool }}"
+#command_line:
+#
+#  - binary_sensor:
+#      name: Raspi4 keepalive
+#      unique_id: raspi4_keepalive
+#      device_class: connectivity
+#      command: 'curl -s -o /dev/null -w ''%{http_code}'' http://192.168.0.133:8123'
+#      scan_interval: 300
+#      value_template: >-
+#        {% if value == "200" %}
+#          on
+#        {% else %}
+#          off
+#        {% endif %}
 
 
 #--------------------------- INPUT SELECT ----------------------#
@@ -260,7 +227,16 @@ alexa:
 #    - fd00::/64
 
 recorder:
+  purge_keep_days: 10          # of 14
+  commit_interval: 30
   exclude:
+    entity_globs:
+      - sensor.*uptime*
+      - sensor.*rssi*
+      - sensor.*vcc*
+      - sensor.*interval*
+      - sensor.licht_huiskamer
+      - binary_sensor.*keepalive*
     domains:
       - device_tracker
       - media_player

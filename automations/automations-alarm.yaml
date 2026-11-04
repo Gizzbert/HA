@@ -1,0 +1,198 @@
+- id: '1679422364720'
+  alias: 'Alarm: night trigger'
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.alarm_motion_sensors
+    to: 'on'
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_night
+  action:
+  - service: alarm_control_panel.alarm_trigger
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+
+- id: '1679424039269'
+  alias: 'Alarm: vacation trigger'
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.alarm_motion_sensors
+    to: 'on'
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_vacation
+  action:
+  - service: alarm_control_panel.alarm_trigger
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+
+- id: '1679424681830'
+  alias: 'Alarm: blink lights & call phone'
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id: alarm_control_panel.home_alarm
+    to: triggered
+    id: alarm-is-triggered
+  - trigger: state
+    entity_id: alarm_control_panel.home_alarm
+    to: disarmed
+    id: alarm-is-disarmed
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: alarm-is-triggered
+      sequence:
+      - data:
+          topic: /openhab/notification/alarm
+          payload: PIR tuinkamer alarm
+        action: mqtt.publish
+      - target:
+          entity_id: media_player.yas_209
+        data:
+          volume_level: 0.5
+        action: media_player.volume_set
+      - parallel:
+        - repeat:
+            while:
+            - condition: state
+              entity_id: alarm_control_panel.home_alarm
+              state: triggered
+            - condition: template
+              value_template: '{{ repeat.index <= 60 }}'
+            sequence:
+            - target:
+                entity_id: input_boolean.living
+              action: input_boolean.turn_on
+            - delay:
+                seconds: 1
+            - target:
+                entity_id: input_boolean.living
+              action: input_boolean.turn_off
+            - delay:
+                seconds: 1
+        - repeat:
+            while:
+            - condition: state
+              entity_id: alarm_control_panel.home_alarm
+              state: triggered
+            - condition: template
+              value_template: '{{ repeat.index <= 3 }}'
+            sequence:
+            - target:
+                entity_id: media_player.yas_209
+              data:
+                media:
+                  media_content_id: media-source://media_source/local/TF036.WAV
+                  media_content_type: audio/x-wav
+                  metadata:
+                    title: TF036.WAV
+                    thumbnail:
+                    media_class: music
+                    children_media_class:
+                    navigateIds:
+                    - {}
+                    - media_content_type: app
+                      media_content_id: media-source://media_source
+                    browse_entity_id: media_player.yas_209
+              action: media_player.play_media
+    - conditions:
+      - condition: trigger
+        id: alarm-is-disarmed
+      sequence:
+      - target:
+          entity_id: input_boolean.living
+        action: input_boolean.turn_off
+      - target:
+          entity_id: media_player.yas_209
+        data:
+          volume_level: 0.1
+        action: media_player.volume_set
+  mode: restart
+
+- id: '1679425661950'
+  alias: 'Alarm: night arm'
+  description: ''
+  trigger:
+  - platform: time
+    at: 00:55:00
+  condition:
+  - condition: state
+    entity_id: input_boolean.pause_alarm
+    state: 'off'
+  action:
+  - service: alarm_control_panel.alarm_arm_night
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+
+- id: '1679428820897'
+  alias: 'Alarm: night disarm'
+  description: ''
+  trigger:
+  - platform: time
+    at: 06:00:00
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_night
+  action:
+  - service: alarm_control_panel.alarm_disarm
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+
+- id: '1679858813325'
+  alias: 'Alarm: disarm with rocker switch'
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - switch.minir2_living
+    to: 'on'
+  - platform: state
+    entity_id:
+    - switch.minir2_living
+    to: 'off'
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: triggered
+  action:
+  - service: alarm_control_panel.alarm_disarm
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+
+- id: '1679866899444'
+  alias: 'Alarm: alert on movement detected in hallway'
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.pir1_occupancy
+    to: 'on'
+  condition:
+  - condition: time
+    after: 00:00:00
+    before: 06:00:00
+  action:
+  - service: notify.mobile_app_oneplus
+    data:
+      message: yo, busy in hallway {{ states('sensor.time') }}
+  mode: single
