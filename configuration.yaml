@@ -2,7 +2,10 @@
 default_config:
 
 ### Includes ###
-automation: !include_dir_merge_list automations/
+# `automation:` is the file the UI edits (automations.yaml).
+# `automation split:` is the same integration; the label only lets both load.
+automation: !include automations.yaml
+automation split: !include_dir_merge_list automations/
 mqtt: !include mqtt.yaml
 group: !include groups.yaml
 template: !include templates.yaml
@@ -162,9 +165,9 @@ input_boolean:
   marstek_auto_control_enabled:
     name: Marstek Auto Control Enabled
 
-  # Set only while the tuinkamer motion automation owns input_boolean.party_lights.
-  # initial applies when there is no restored state; the automation also clears
-  # this on Home Assistant start so a restored flag cannot turn the lights off.
+  # Created from this file at Home Assistant startup, not on an automation
+  # reload. There is no second input_boolean: key and no package defines one,
+  # so this does not collide with the UI helper input_boolean.party_lights.
   party_lights_auto_tuinkamer:
     name: Party lights aan door tuinkamer
     icon: mdi:motion-sensor
