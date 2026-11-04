@@ -162,6 +162,14 @@ input_boolean:
   marstek_auto_control_enabled:
     name: Marstek Auto Control Enabled
 
+  # Set only while the tuinkamer motion automation owns input_boolean.party_lights.
+  # initial applies when there is no restored state; the automation also clears
+  # this on Home Assistant start so a restored flag cannot turn the lights off.
+  party_lights_auto_tuinkamer:
+    name: Party lights aan door tuinkamer
+    icon: mdi:motion-sensor
+    initial: off
+
 input_number:
   marstek_min_soc_night:
     name: Marstek Minimum SoC Night
