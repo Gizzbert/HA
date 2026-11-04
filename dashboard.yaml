@@ -1,0 +1,768 @@
+title: Thuis
+views:
+  - path: default_view
+    title: Home
+    icon: mdi:home
+    badges: []
+    cards:
+      - type: entities
+        title: Lampen
+        state_color: true
+        entities:
+          - entity: input_boolean.living
+          - entity: input_boolean.dresser
+          - entity: input_boolean.veranda
+            icon: mdi:coach-lamp-variant
+            name: Veranda
+          - entity: input_boolean.party_lights
+            name: Party lights
+            icon: mdi:string-lights
+          - type: conditional
+            conditions:
+              - entity: binary_sensor.xmas_lights_season
+                state: 'on'
+            row:
+              entity: input_boolean.xmaslights
+              name: Kerstverlichting
+              icon: mdi:string-lights
+      - type: entities
+        entities:
+          - entity: input_select.fan_level
+        title: Afzuiging
+      - type: weather-forecast
+        entity: weather.knmi_home
+        forecast_type: hourly
+        secondary_info_attribute: wind_speed
+        show_current: true
+        show_forecast: true
+      - type: custom:horizon-card
+      - type: alarm-panel
+        states:
+          - arm_night
+          - arm_vacation
+        entity: alarm_control_panel.home_alarm
+      - type: tile
+        entity: input_boolean.pause_alarm
+        show_entity_picture: true
+      - type: entities
+        entities:
+          - entity: binary_sensor.beweging_tuinkamer
+            secondary_info: last-changed
+            icon: mdi:motion-sensor-off
+            name: Tuinkamer - RFM868 PIR
+          - entity: binary_sensor.pir1_occupancy
+            secondary_info: last-changed
+            name: Gang - Zigbee PIR
+          - entity: binary_sensor.mmwave_presence_ld2410
+            name: Kantoor - ESP mmWave
+            secondary_info: last-changed
+        show_header_toggle: true
+        state_color: true
+        title: Aanwezig
+      - type: energy-distribution
+  - title: Schakelaars
+    path: v
+    cards:
+      - type: entities
+        entities:
+          - entity: switch.wifi_stopcontact_1
+            name: 1 - Magnetizer (Action)
+          - entity: switch.sonoff_1001e8bd71_1
+            name: 2 - Droger (Sonoff)
+          - entity: switch.sonoff_1001e8c75f_1
+            name: 3 - Wasmachine (Sonoff)
+          - entity: switch.wifi_stopcontact_4_none
+            name: 4 - Quooker (Tuya)
+            icon: mdi:toggle-switch-variant
+          - entity: switch.wifi_stopcontact_5_none
+            name: 5 - Inverter cooler (Tuya)
+            icon: mdi:toggle-switch-variant
+          - entity: switch.wifi_stopcontact_6_none
+            name: 6 - Dresser (Tuya)
+            icon: mdi:toggle-switch-variant-off
+          - entity: switch.wifi_stopcontact_7
+            name: 7 - Living (Tuya)
+          - entity: light.veranda_dimmer_switch
+          - entity: switch.schakelaar_2_oud
+            name: Party lights switch
+          - entity: switch.wifi_stopcontact_8
+        title: Wifi schakelaars
+      - type: entities
+        entities:
+          - entity: group.living_lights_group
+          - entity: input_boolean.living
+          - entity: input_boolean.dresser
+        title: Living lights
+      - type: entities
+        entities:
+          - entity: group.veranda_lights_group
+          - entity: input_boolean.veranda
+          - entity: input_boolean.party_lights
+        title: Veranda lights
+      - type: light
+        entity: light.veranda_dimmer_switch
+      - type: entities
+        entities:
+          - entity: time.wifi_stopcontact_1_timer
+            name: Action stekker timer
+          - entity: input_boolean.vacation
+            name: Vakantie
+          - entity: input_boolean.xmas_override
+        title: Toggles
+    icon: mdi:light-switch-off
+    badges: []
+    type: masonry
+  - type: sections
+    max_columns: 4
+    title: Media
+    path: media
+    icon: mdi:play-network
+    sections:
+      - type: grid
+        cards:
+          - type: media-control
+            entity: media_player.yas_209
+          - type: media-control
+            entity: media_player.fire_tv_192_168_0_103
+  - title: Luchtkwaliteit
+    path: luchtkwaliteit
+    cards:
+      - graph: line
+        hours_to_show: 48
+        type: sensor
+        entity: sensor.co2_huiskamer
+        detail: 2
+        name: CO2 huiskamer
+      - type: entities
+        entities:
+          - entity: sensor.vocht_badkamer
+            icon: mdi:water-percent
+            name: Badkamer
+          - entity: sensor.vocht_huiskamer
+            icon: mdi:water-percent
+            name: Huiskamer
+          - entity: sensor.vocht_kantoor
+            icon: mdi:water-percent
+            name: Kantoor
+        title: Luchtvochtigheid
+        show_header_toggle: true
+        state_color: false
+      - type: entities
+        entities:
+          - entity: sensor.temperatuur_badkamer
+            name: Badkamer
+            icon: mdi:home-thermometer-outline
+          - entity: sensor.temperatuur_huiskamer
+            name: Huiskamer
+            icon: mdi:home-thermometer-outline
+          - entity: sensor.temperatuur_kantoor
+            name: Kantoor
+            icon: mdi:home-thermometer-outline
+        title: Temperatuur
+    icon: mdi:air-filter
+  - title: Energy
+    path: energy
+    cards:
+      - type: history-graph
+        entities:
+          - entity: sensor.pv_temperature
+        title: Inverter temperature
+        hours_to_show: 48
+        min_y_axis: 15
+        max_y_axis: 60
+      - type: entities
+        entities:
+          - entity: fan.fan
+          - entity: number.fan_100_temp
+          - entity: number.fan_start_temp
+          - entity: switch.goodwe_pv_temp_controlled
+          - entity: switch.temperature_controlled
+          - entity: sensor.measured_speed
+        title: Inverter cooling-Fan
+      - type: history-graph
+        title: PhotoVoltaic energy supply
+        entities:
+          - entity: sensor.today_s_pv_generation_west
+          - entity: sensor.today_s_pv_generation_east
+      - type: entities
+        entities:
+          - entity: number.goodwe_net_exportlimiet
+            name: Net exportlimiet
+        title: Inverter grid export
+      - type: entities
+        entities:
+          - entity: sensor.wifi_stopcontact_4_energy
+            name: Energy
+          - entity: binary_sensor.wifi_stopcontact_4_online
+            name: Online
+          - entity: binary_sensor.wifi_stopcontact_4_probleem
+            name: Probleem
+          - entity: sensor.wifi_stopcontact_4_spanning
+            name: Spanning
+          - entity: sensor.wifi_stopcontact_4_stroom
+            name: Stroom
+          - entity: sensor.wifi_stopcontact_4_vermogen
+            name: Vermogen
+          - entity: sensor.wifi_stopcontact_4_total
+        title: 'Quooker '
+      - type: custom:apexcharts-card
+        graph_span: 14h
+        span:
+          start: hour
+          offset: -3h
+        now:
+          show: true
+          label: Nu
+        header:
+          show: true
+          show_states: true
+          colorize_states: true
+        yaxis:
+          - decimals: 2
+            min: 0
+            max: '|+0.10|'
+        series:
+          - entity: sensor.current_electricity_price_all_in
+            show:
+              in_header: raw
+              legend_value: false
+            stroke_width: 2
+            float_precision: 4
+            type: column
+            opacity: 0.3
+            color: '#03b2cb'
+            data_generator: |
+              return entity.attributes.prices.map((record, index) => {
+                return [record.from, record.price];
+              });
+      - type: history-graph
+        entities:
+          - entity: sensor.wifi_stopcontact_4_total
+            name: Quooker
+          - entity: sensor.droger_kosten
+            name: Droger
+          - entity: sensor.wasmachine_kosten
+            name: Wasmachine
+        title: Quooker Droger Wasmachine verbruik
+        logarithmic_scale: false
+        hours_to_show: 720
+      - type: entities
+        entities:
+          - entity: sensor.sonoff_1001e8bd71_current
+            name: Current
+          - entity: sensor.sonoff_1001e8bd71_power
+            name: Power
+          - entity: sensor.sonoff_1001e8bd71_voltage
+            name: Voltage
+          - entity: sensor.droger_kosten
+        title: Droger
+      - type: entities
+        entities:
+          - entity: sensor.sonoff_1001e8c75f_current
+            name: Current
+          - entity: sensor.sonoff_1001e8c75f_power
+            name: Power
+          - entity: sensor.sonoff_1001e8c75f_voltage
+            name: Voltage
+          - sensor.wasmachine_kosten
+        title: Wasmachine
+    icon: mdi:transmission-tower
+    type: masonry
+  - type: sections
+    max_columns: 4
+    icon: mdi:home-battery-outline
+    path: marstek
+    title: Marstek
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Marstek Total
+          - output: true
+            battery: true
+            production: true
+            settings: true
+            solar: true
+            icon: true
+            compact: false
+            max_input_power: 2500
+            max_input_power2: 600
+            max_input_power3: 600
+            max_input_power4: 600
+            entities:
+              battery_percentage: sensor.evcc_marstek_totaal_soc
+              battery_capacity: sensor.marstek_total_stored_energy
+              solar_power: sensor.total_solar_power
+              p1_power: sensor.electricity_meter_power_consumption
+              p2_power: sensor.electricity_meter_power_production
+              output_power: sensor.marstek_combined_grid_power
+              production_today: sensor.marstek_total_discharging_energy_today
+            type: custom:b2500d-card
+            name: Marstek Total
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Marstek Detail
+          - output: true
+            battery: true
+            production: true
+            settings: true
+            solar: false
+            icon: true
+            compact: true
+            horizontal: false
+            max_input_power: 2500
+            max_input_power2: 600
+            max_input_power3: 600
+            max_input_power4: 600
+            entities:
+              battery_percentage: sensor.evcc_marstek_alpha_soc
+              battery_capacity: sensor.marstek_venus_e_3_0_alpha_available_capacity
+              solar_power: sensor.total_solar_power
+              p1_power: sensor.electricity_meter_power_production
+              p2_power: sensor.electricity_meter_power_consumption
+              output_power: sensor.evcc_marstek_alpha_power
+              production_today: sensor.marstek_venus_alpha_modbus_dagelijkse_ontlaadenergie
+            type: custom:b2500d-card
+            name: Marstek Venus Alpha
+          - output: true
+            battery: true
+            production: true
+            settings: true
+            solar: false
+            icon: true
+            compact: true
+            horizontal: false
+            max_input_power: 2500
+            max_input_power2: 600
+            max_input_power3: 600
+            max_input_power4: 600
+            entities:
+              battery_percentage: sensor.evcc_marstek_beta_soc
+              battery_capacity: sensor.marstek_venus_beta_modbus_opgeslagen_energie
+              solar_power: sensor.total_solar_power
+              p1_power: sensor.electricity_meter_power_production
+              p2_power: sensor.electricity_meter_power_consumption
+              output_power: sensor.evcc_marstek_beta_power
+              production_today: sensor.marstek_venus_beta_modbus_dagelijkse_ontlaadenergie
+            type: custom:b2500d-card
+            name: Marstek Venus Beta
+          - type: custom:apexcharts-card
+            graph_span: 1d
+            header:
+              show: true
+              title: Marstek total battery state
+            apex_config:
+              chart:
+                height: 200
+              fill:
+                opacity: 5
+              yaxis:
+                - min: 0
+                  max: 100
+                  decimalsInFloat: 0
+              annotations:
+                yaxis:
+                  - 'y': 0
+                    y2: 20
+                    fillColor: '#FF0000'
+                    opacity: 0.1
+                  - 'y': 20
+                    y2: 50
+                    fillColor: '#FFA500'
+                    opacity: 0.1
+                  - 'y': 50
+                    y2: 100
+                    fillColor: '#00FF00'
+                    opacity: 0.1
+            series:
+              - entity: sensor.evcc_marstek_totaal_soc
+                name: Battery SoC
+                type: line
+                stroke_width: 3
+                color: '#FFFFFF'
+                group_by:
+                  func: last
+                  duration: 30m
+          - type: history-graph
+            entities:
+              - entity: sensor.evcc_marstek_alpha_power
+                name: Alpha
+              - entity: sensor.evcc_marstek_beta_power
+                name: Beta
+            title: Battery power (+ = discharge)
+            hours_to_show: 24
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Marstek State Of Charge
+          - type: custom:apexcharts-card
+            graph_span: 1d
+            header:
+              show: true
+              title: Marstek Venus Alpha
+            apex_config:
+              chart:
+                height: 110
+              fill:
+                opacity: 5
+              yaxis:
+                - min: 0
+                  max: 100
+                  decimalsInFloat: 0
+              annotations:
+                yaxis:
+                  - 'y': 0
+                    y2: 20
+                    fillColor: '#FF0000'
+                    opacity: 0.1
+                  - 'y': 20
+                    y2: 50
+                    fillColor: '#FFA500'
+                    opacity: 0.1
+                  - 'y': 50
+                    y2: 100
+                    fillColor: '#00FF00'
+                    opacity: 0.1
+            series:
+              - entity: sensor.evcc_marstek_alpha_soc
+                name: Battery SoC
+                type: line
+                stroke_width: 3
+                color: '#FFFFFF'
+                group_by:
+                  func: last
+                  duration: 30m
+          - type: custom:apexcharts-card
+            graph_span: 1d
+            header:
+              show: true
+              title: Marstek Venus Beta
+            apex_config:
+              chart:
+                height: 110
+              fill:
+                opacity: 5
+              yaxis:
+                - min: 0
+                  max: 100
+                  decimalsInFloat: 0
+              annotations:
+                yaxis:
+                  - 'y': 0
+                    y2: 20
+                    fillColor: '#FF0000'
+                    opacity: 0.1
+                  - 'y': 20
+                    y2: 50
+                    fillColor: '#FFA500'
+                    opacity: 0.1
+                  - 'y': 50
+                    y2: 100
+                    fillColor: '#00FF00'
+                    opacity: 0.1
+            series:
+              - entity: sensor.evcc_marstek_beta_soc
+                name: Battery SoC
+                type: line
+                stroke_width: 3
+                color: '#FFFFFF'
+                group_by:
+                  func: last
+                  duration: 30m
+          - type: energy-usage-graph
+          - type: tile
+            entity: alarm_control_panel.home_alarm
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Current Usage and Return
+          - type: vertical-stack
+            cards:
+              - type: horizontal-stack
+                cards:
+                  - graph: line
+                    name: Net power
+                    type: sensor
+                    entity: sensor.grid_power_net
+                    detail: 1
+                    limits: null
+                    max: 700
+                    hours_to_show: 24
+                  - graph: line
+                    name: Battery power
+                    type: sensor
+                    entity: sensor.marstek_combined_grid_power
+                    detail: 1
+                    limits: null
+                    max: 700
+                    hours_to_show: 24
+          - type: statistics-graph
+            entities:
+              - sensor.grid_power_net
+            title: Net Power
+            period: 5minute
+            chart_type: bar
+            stat_types:
+              - mean
+              - min
+              - max
+          - type: custom:apexcharts-card
+            header:
+              show: true
+              title: NextEnergy electricity price — all-in
+              show_states: true
+              colorize_states: true
+            graph_span: 20h
+            span:
+              start: hour
+              offset: -2h
+            now:
+              show: true
+              label: Now
+            color_list:
+              - '#00a3bd'
+            apex_config:
+              chart:
+                height: 260
+              plotOptions:
+                bar:
+                  columnWidth: 75%
+              dataLabels:
+                enabled: false
+              xaxis:
+                labels:
+                  datetimeUTC: false
+              yaxis:
+                decimalsInFloat: 2
+              tooltip:
+                x:
+                  format: HH:mm
+            series:
+              - entity: sensor.nextenergy_prices_today
+                name: All-in
+                type: column
+                unit: EUR/kWh
+                float_precision: 4
+                show:
+                  in_header: false
+                data_generator: |
+                  return (entity.attributes.prices || []).map((item) => [
+                    new Date(item.start).getTime(),
+                    Number(item.price)
+                  ]);
+              - entity: sensor.nextenergy_electricity_all_in
+                name: Nu
+                unit: EUR/kWh
+                float_precision: 4
+                color: '#00a3bd'
+                show:
+                  in_header: raw
+                  in_chart: false
+          - type: custom:apexcharts-card
+            graph_span: 14h
+            span:
+              start: hour
+              offset: -3h
+            now:
+              show: true
+              label: Nu
+            header:
+              show: true
+              show_states: true
+              colorize_states: true
+            yaxis:
+              - decimals: 2
+                min: 0
+                max: '|+0.10|'
+            series:
+              - entity: sensor.current_electricity_price_all_in
+                show:
+                  in_header: raw
+                  legend_value: false
+                stroke_width: 2
+                float_precision: 4
+                type: column
+                opacity: 0.3
+                color: '#03b2cb'
+                data_generator: |
+                  return entity.attributes.prices.map((record, index) => {
+                    return [record.from, record.price];
+                  });
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            icon: ''
+            heading: Real-time energy usage
+          - type: custom:apexcharts-card
+            graph_span: 1d
+            show:
+              last_updated: true
+            header:
+              standard_format: false
+              show: true
+              show_states: true
+              colorize_states: true
+            apex_config:
+              fill:
+                type: solid
+                opacity: 0.3
+              yaxis:
+                - id: first
+                  forceNiceScale: true
+                  decimalsInFloat: 3
+              annotations:
+                yaxis:
+                  - 'y': 0
+                    borderColor: '#FFFFFF'
+                    borderWidth: 2
+            series:
+              - entity: sensor.net_energy_positive
+                name: Verbruik
+                type: area
+                color: '#FFA500'
+                stroke_width: 2
+                group_by:
+                  func: last
+                  duration: 30m
+              - entity: sensor.net_energy_negative
+                name: Teruglevering
+                type: area
+                color: '#00FF00'
+                stroke_width: 2
+                group_by:
+                  func: last
+                  duration: 30m
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Power Sources
+          - type: power-sources-graph
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Smart Meter Totals
+          - type: vertical-stack
+            cards:
+              - type: entities
+                entities:
+                  - entity: sensor.electricity_meter_energy_consumption_tarif_1
+                    icon: mdi:lightning-bolt
+                    secondary_info: none
+                  - entity: sensor.electricity_meter_energy_consumption_tarif_2
+                  - entity: sensor.electricity_meter_energy_production_tarif_1
+                  - entity: sensor.electricity_meter_energy_production_tarif_2
+                  - entity: sensor.marstek_combined_total_grid_import_clean
+                    name: Marstek geladen (EVCC)
+                  - entity: sensor.marstek_combined_total_grid_export_clean
+                    name: Marstek ontladen (EVCC)
+    cards: []
+  - theme: Backend-selected
+    title: Telemetry
+    path: telemetry
+    subview: false
+    cards:
+      - type: entities
+        entities:
+          - entity: sensor.1_uptime
+            secondary_info: last-updated
+            name: Uptime
+        title: 'Node 1: gateway - RFM868 to eth'
+        state_color: true
+      - type: entities
+        entities:
+          - entity: sensor.5_rssi
+            secondary_info: last-updated
+            name: RSSI
+          - entity: sensor.5_uptime
+            secondary_info: none
+            name: Uptime
+          - entity: sensor.5_vcc
+            secondary_info: none
+            name: VCC
+          - entity: sensor.5_update_interval
+            secondary_info: none
+            name: Update interval
+        title: 'Node 5: gateway - RFM433 lamps & Fan'
+      - type: entities
+        entities:
+          - entity: sensor.2_rssi
+            secondary_info: last-updated
+            name: RSSI
+          - entity: sensor.2_uptime
+            secondary_info: none
+            name: Uptime
+          - entity: sensor.2_vcc
+            secondary_info: none
+            name: VCC
+          - entity: sensor.2_update_interval
+            secondary_info: none
+            name: Update interval
+        title: 'Node 2: Huiskamer CO2, vocht en luchtvochtigheid'
+        state_color: true
+      - type: entities
+        entities:
+          - entity: sensor.3_rssi
+            secondary_info: last-updated
+            name: RSSI
+          - entity: sensor.3_uptime
+            secondary_info: none
+            name: Uptime
+          - entity: sensor.3_vcc
+            secondary_info: none
+            name: VCC
+          - entity: sensor.3_update_interval
+            secondary_info: none
+            name: Update interval
+        title: 'Node 3: Badkamer temp en luchtvochtigheid'
+      - type: entities
+        entities:
+          - entity: sensor.4_rssi
+            secondary_info: last-updated
+            name: RSSI
+          - entity: sensor.4_uptime
+            secondary_info: none
+            name: Uptime
+          - entity: sensor.4_vcc
+            name: VCC
+          - entity: sensor.4_update_interval
+            name: Update interval
+        title: 'Node 4: Tuinkamer PIR'
+      - type: entities
+        entities:
+          - entity: sensor.6_rssi
+            secondary_info: last-updated
+            name: RSSI
+          - entity: sensor.6_uptime
+            secondary_info: none
+            name: Uptime
+          - entity: sensor.6_vcc
+            secondary_info: none
+            name: VCC
+          - entity: sensor.6_update_interval
+            secondary_info: none
+            name: Update interval
+        title: 'Node 6: Kantoor Hum Temp'
+    icon: mdi:gauge
+  - type: sections
+    max_columns: 4
+    title: Testbed
+    path: testbed
+    icon: mdi:test-tube
+    sections:
+      - type: grid
+        cards:
+          - type: entities
+            title: Logging
+            entities:
+              - entity: input_select.log_level
+          - type: heading
+            heading_style: title
+  - cards: []
