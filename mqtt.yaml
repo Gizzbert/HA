@@ -204,6 +204,15 @@
       state_class: measurement
       expire_after: 300
 
+    # EVCC battery energy, kWh.
+    # `energy` is TotalEnergy(): for a battery that is discharge
+    # (energy out). The Marstek Venus template reads register 33002,
+    # "Total energy discharged from battery".
+    # `returnEnergy` is ReturnEnergy(): charge (energy in). EVCC sums
+    # both onto evcc/site/battery/{energy,returnEnergy}. The stock
+    # marstek-venus-e template does not set returnenergy, so the site
+    # charge total stays 0 and the per-device returnEnergy topics are
+    # not published. Devices are 1-based: /devices/1 and /devices/2.
     - name: "EVCC Marstek alpha grid export"
       unique_id: evcc_marstek_alpha_grid_export
       state_topic: "evcc/site/battery/devices/1/energy"
@@ -231,6 +240,14 @@
     - name: "EVCC Marstek beta returnEnergy"
       unique_id: evcc_marstek_beta_returnenergy
       state_topic: "evcc/site/battery/devices/2/returnEnergy"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      expire_after: 300
+
+    - name: "EVCC Marstek combined energy"
+      unique_id: evcc_marstek_combined_energy
+      state_topic: "evcc/site/battery/energy"
       unit_of_measurement: "kWh"
       device_class: energy
       state_class: total_increasing
