@@ -1,0 +1,431 @@
+# templates.yaml
+# templating: https://www.home-assistant.io/docs/configuration/templating/
+
+- sensor:
+    # --- Marstek via EVCC (MQTT). EVCC: + = ontladen, - = laden ---
+    - name: "EVCC Marstek alpha charge power"
+      unique_id: evcc_marstek_alpha_charge_power
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+      availability: "{{ is_number(states('sensor.evcc_marstek_alpha_power')) }}"
+      state: "{{ [0, -(states('sensor.evcc_marstek_alpha_power') | float(0))] | max }}"
+
+    - name: "EVCC Marstek beta charge power"
+      unique_id: evcc_marstek_beta_charge_power
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+      availability: "{{ is_number(states('sensor.evcc_marstek_beta_power')) }}"
+      state: "{{ [0, -(states('sensor.evcc_marstek_beta_power') | float(0))] | max }}"
+
+    - name: "EVCC Marstek alpha discharge power"
+      unique_id: evcc_marstek_alpha_discharge_power
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+      availability: "{{ is_number(states('sensor.evcc_marstek_alpha_power')) }}"
+      state: "{{ [0, states('sensor.evcc_marstek_alpha_power') | float(0)] | max }}"
+
+    - name: "EVCC Marstek beta discharge power"
+      unique_id: evcc_marstek_beta_discharge_power
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+      availability: "{{ is_number(states('sensor.evcc_marstek_beta_power')) }}"
+      state: "{{ [0, states('sensor.evcc_marstek_beta_power') | float(0)] | max }}"
+
+    # sign = -1: zelfde teken als oude Marstek-sensor (laden = +). Zet op 1 als het omgekeerd blijkt.
+    - name: "Marstek Combined Grid Power"
+      unique_id: marstek_combined_grid_power
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+      availability: >
+        {{ is_number(states('sensor.evcc_marstek_alpha_power'))
+           and is_number(states('sensor.evcc_marstek_beta_power')) }}
+      state: >
+        {% set sign = -1 %}
+        {% set alpha = states('sensor.evcc_marstek_alpha_power') | float(0) %}
+        {% set beta  = states('sensor.evcc_marstek_beta_power') | float(0) %}
+        {{ ((alpha + beta) * sign) | round(0) }}
+
+    - name: "Marstek Combined Total Grid Export"
+      unique_id: marstek_combined_total_grid_export
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      availability: >
+        {{ is_number(states('sensor.evcc_marstek_alpha_grid_export'))
+           and is_number(states('sensor.evcc_marstek_beta_grid_export')) }}
+      state: >
+        {% set alpha = states('sensor.evcc_marstek_alpha_grid_export') | float(0) %}
+        {% set beta  = states('sensor.evcc_marstek_beta_grid_export') | float(0) %}
+        {{ (alpha + beta) | round(3) }}
+
+    - name: "Marstek Combined Total Grid Import"
+      unique_id: marstek_combined_total_grid_import
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      availability: >
+        {{ is_number(states('sensor.evcc_marstek_alpha_grid_import'))
+           and is_number(states('sensor.evcc_marstek_beta_grid_import')) }}
+      state: >
+        {% set alpha = states('sensor.evcc_marstek_alpha_grid_import') | float(0) %}
+        {% set beta  = states('sensor.evcc_marstek_beta_grid_import') | float(0) %}
+        {{ (alpha + beta) | round(3) }}
+
+    # --- PV ---
+    - name: "PV Temperature"
+      state: "{{ state_attr('sensor.inverter_gw4200d_ns', 'tempperature') }}"
+      unit_of_measurement: "°C"
+
+    - name: "Today's PV generation East"
+      state: "{{ states('sensor.goodwe_today_s_pv_generation') }}"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Total PV generation East"
+      state: "{{ states('sensor.goodwe_total_pv_generation') }}"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+
+    - name: "Today's PV generation West"
+      state: "{{ states('sensor.sunnyboy_today_s_energy_supply') }}"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+
+    # --- Slimme meter ---
+    - name: "Electricity Total Energy Production Filtered"
+      unique_id: electricity_total_energy_production_filtered
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      state: >
+        {% set t1 = states('sensor.electricity_meter_energy_production_tarif_1') | float(0) %}
+        {% set t2 = states('sensor.electricity_meter_energy_production_tarif_2') | float(0) %}
+        {% set new = (t1 + t2) | round(3) %}
+        {% set old_str = states(this.entity_id) %}
+        {% if old_str in ['unknown', 'unavailable', 'none', ''] %}
+          {{ new }}
+        {% else %}
+          {% set old = old_str | float(new) %}
+          {% if new < old or (new - old) > 1 %}
+            {{ old }}
+          {% else %}
+            {{ new }}
+          {% endif %}
+        {% endif %}
+
+    - name: "Electricity Total Energy Consumption Filtered"
+      unique_id: electricity_total_energy_consumption_filtered
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      state: >
+        {% set t1 = states('sensor.electricity_meter_energy_consumption_tarif_1') | float(0) %}
+        {% set t2 = states('sensor.electricity_meter_energy_consumption_tarif_2') | float(0) %}
+        {% set new = (t1 + t2) | round(3) %}
+        {% set old_str = states(this.entity_id) %}
+        {% if old_str in ['unknown', 'unavailable', 'none', ''] %}
+          {{ new }}
+        {% else %}
+          {% set old = old_str | float(new) %}
+          {% if new < old or (new - old) > 1 %}
+            {{ old }}
+          {% else %}
+            {{ new }}
+          {% endif %}
+        {% endif %}
+
+    - name: "Grid Import Energy Total"
+      unique_id: grid_import_energy_total
+      icon: mdi:transmission-tower-import
+      device_class: energy
+      state_class: total_increasing
+      unit_of_measurement: kWh
+      availability: >-
+        {{ is_number(states('sensor.electricity_meter_energieverbruik_tarief_1'))
+           and is_number(states('sensor.electricity_meter_energieverbruik_tarief_2')) }}
+      state: >-
+        {{ (states('sensor.electricity_meter_energieverbruik_tarief_1') | float(0)
+            + states('sensor.electricity_meter_energieverbruik_tarief_2') | float(0)) | round(3) }}
+
+    - name: "Grid Export Energy Total"
+      unique_id: grid_export_energy_total
+      icon: mdi:transmission-tower-export
+      device_class: energy
+      state_class: total_increasing
+      unit_of_measurement: kWh
+      availability: >-
+        {{ is_number(states('sensor.electricity_meter_energieproductie_tarief_1'))
+           and is_number(states('sensor.electricity_meter_energieproductie_tarief_2')) }}
+      state: >-
+        {{ (states('sensor.electricity_meter_energieproductie_tarief_1') | float(0)
+            + states('sensor.electricity_meter_energieproductie_tarief_2') | float(0)) | round(3) }}
+
+    - name: "Grid Power Net"
+      unique_id: grid_power_net
+      icon: mdi:transmission-tower
+      device_class: power
+      state_class: measurement
+      unit_of_measurement: W
+      availability: >-
+        {{ is_number(states('sensor.electricity_meter_energieverbruik'))
+           and is_number(states('sensor.electricity_meter_energieproductie')) }}
+      state: >-
+        {{ ((states('sensor.electricity_meter_energieverbruik') | float(0)
+             - states('sensor.electricity_meter_energieproductie') | float(0)) * 1000) | round(0) }}
+
+    # --- Prijzen ---
+    - name: "Electricity Price EUR kWh"
+      unique_id: electricity_price_eur_kwh_marstek_control
+      unit_of_measurement: "EUR/kWh"
+      state_class: measurement
+      state: "{{ states('sensor.current_electricity_price_all_in') | float(0) }}"
+
+    - name: "NextEnergy electricity all-in"
+      unique_id: nextenergy_electricity_all_in
+      unit_of_measurement: "EUR/kWh"
+      state_class: measurement
+      availability: "{{ is_number(states('sensor.nord_pool_nl_huidige_prijs')) }}"
+      state: >
+        {% set market = states('sensor.nord_pool_nl_huidige_prijs') | float(0) %}
+        {% set purchase_fee_incl_vat = 0.02190 %}
+        {% set energy_tax_incl_vat = 0.11084 %}
+        {{ (market * 1.21 + purchase_fee_incl_vat + energy_tax_incl_vat) | round(5) }}
+
+    - name: "NextEnergy current price"
+      unique_id: nextenergy_current_price
+      unit_of_measurement: "EUR/kWh"
+      device_class: monetary
+      state: >
+        {% set d = state_attr('sensor.enever_electricity_prices_today_2', 'data') %}
+        {% if d %}
+          {{ d[now().hour]['prijsNE'] | float }}
+        {% else %}
+          unknown
+        {% endif %}
+      attributes:
+        prices: >
+          {% set today = state_attr('sensor.enever_electricity_prices_today_2', 'data') or [] %}
+          {% set tomorrow = state_attr('sensor.enever_electricity_prices_tomorrow_2', 'data') or [] %}
+          {% set ns = namespace(items=[]) %}
+          {% for r in (today + tomorrow) %}
+            {% set ns.items = ns.items + [{'from': r.datum, 'price': r.prijsNE | float}] %}
+          {% endfor %}
+          {{ ns.items }}
+
+    - name: "NextEnergy electricity export tariff"
+      unique_id: nextenergy_electricity_export_tariff
+      unit_of_measurement: "EUR/kWh"
+      state_class: measurement
+      icon: mdi:transmission-tower-export
+      availability: >
+        {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
+        {% set current = as_timestamp(now()) %}
+        {% set ns = namespace(found=false) %}
+        {% for item in prices %}
+          {% if as_timestamp(item.start) <= current < as_timestamp(item.end) %}
+            {% set ns.found = true %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.found }}
+      state: >
+        {# Must match the components in the import sensor #}
+        {% set import_fee = 0.02190 %}
+        {% set import_energy_tax = 0.11084 %}
+        {% set export_fee = 0.01000 %}
+        {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
+        {% set current = as_timestamp(now()) %}
+        {% set ns = namespace(value=none) %}
+        {% for item in prices %}
+          {% if as_timestamp(item.start) <= current < as_timestamp(item.end) %}
+            {% set ns.value = ((item.price | float) - import_fee - import_energy_tax - export_fee) | round(5) %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.value }}
+      attributes:
+        prices: >
+          {% set import_fee = 0.02190 %}
+          {% set import_energy_tax = 0.11084 %}
+          {% set export_fee = 0.01000 %}
+          {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
+          {% set ns = namespace(items=[]) %}
+          {% for item in prices %}
+            {% set ns.items = ns.items + [{
+              'start': item.start,
+              'end': item.end,
+              'price': ((item.price | float) - import_fee - import_energy_tax - export_fee) | round(5)
+            }] %}
+          {% endfor %}
+          {{ ns.items }}
+
+# --- Guarded Marstek energy counters (via EVCC) ---
+# Reject missing data, backwards movement, and forward jumps > 0.25 kWh per 30 s.
+- triggers:
+    - trigger: time_pattern
+      seconds: "/30"
+  sensor:
+    - name: "Marstek Combined Total Grid Export Clean"
+      unique_id: marstek_combined_total_grid_export_clean
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      state: >
+        {% set e = states('sensor.evcc_marstek_combined_returnenergy') %}
+        {% set previous = this.state %}
+        {% if is_number(e) %}
+          {% set candidate = e | float | round(3) %}
+          {% if not is_number(previous) %}
+            {{ candidate }}
+          {% else %}
+            {% set delta = candidate - (previous | float) %}
+            {{ candidate if 0 <= delta <= 0.25 else previous }}
+          {% endif %}
+        {% else %}
+          {{ previous if is_number(previous) else none }}
+        {% endif %}
+      attributes:
+        guard_status: >
+          {% set e = states('sensor.evcc_marstek_combined_returnenergy') %}
+          {% if not is_number(e) %}
+            source_unavailable
+          {% elif not is_number(this.state) %}
+            initializing
+          {% else %}
+            {% set delta = (e | float | round(3)) - (this.state | float) %}
+            {% if delta < 0 %}rejected_decrease{% elif delta > 0.25 %}rejected_jump{% else %}ok{% endif %}
+          {% endif %}
+        raw_combined_kwh: >
+          {% set e = states('sensor.evcc_marstek_combined_returnenergy') %}
+          {{ e | float | round(3) if is_number(e) else none }}
+        max_step_kwh: 0.25
+
+    - name: "Marstek Combined Total Grid Import Clean"
+      unique_id: marstek_combined_total_grid_import_clean
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      state: >
+        {% set e = states('sensor.evcc_marstek_combined_energy') %}
+        {% set previous = this.state %}
+        {% if is_number(e) %}
+          {% set candidate = e | float | round(3) %}
+          {% if not is_number(previous) %}
+            {{ candidate }}
+          {% else %}
+            {% set delta = candidate - (previous | float) %}
+            {{ candidate if 0 <= delta <= 0.25 else previous }}
+          {% endif %}
+        {% else %}
+          {{ previous if is_number(previous) else none }}
+        {% endif %}
+      attributes:
+        guard_status: >
+          {% set e = states('sensor.evcc_marstek_combined_energy') %}
+          {% if not is_number(e) %}
+            source_unavailable
+          {% elif not is_number(this.state) %}
+            initializing
+          {% else %}
+            {% set delta = (e | float | round(3)) - (this.state | float) %}
+            {% if delta < 0 %}rejected_decrease{% elif delta > 0.25 %}rejected_jump{% else %}ok{% endif %}
+          {% endif %}
+        raw_combined_kwh: >
+          {% set e = states('sensor.evcc_marstek_combined_energy') %}
+          {{ e | float | round(3) if is_number(e) else none }}
+        max_step_kwh: 0.25
+
+
+# --- Nord Pool prices today + tomorrow, NextEnergy all-in ---
+- triggers:
+    - trigger: homeassistant
+      event: start
+    - trigger: time_pattern
+      minutes: "/15"
+  actions:
+    - action: nordpool.get_prices_for_date
+      data:
+        config_entry: "01M4Y5BCXBJCG6J060J50J3911"
+        date: "{{ now().date() }}"
+        areas:
+          - NL
+        currency: EUR
+      response_variable: today_prices
+    - action: nordpool.get_prices_for_date
+      continue_on_error: true
+      data:
+        config_entry: "01M4Y5BCXBJCG6J060J50J3911"
+        date: "{{ (now() + timedelta(days=1)).date() }}"
+        areas:
+          - NL
+        currency: EUR
+      response_variable: tomorrow_prices
+  sensor:
+    - name: "NextEnergy prices today"
+      unique_id: nextenergy_prices_today
+      state: "{{ now().isoformat() }}"
+      attributes:
+        prices: >
+          {% set fee_incl_vat = 0.02190 %}
+          {% set tax_incl_vat = 0.11084 %}
+          {% set t = today_prices.get('NL', []) if today_prices is defined and today_prices else [] %}
+          {% set m = tomorrow_prices.get('NL', []) if tomorrow_prices is defined and tomorrow_prices else [] %}
+          {% set ns = namespace(items=[]) %}
+          {% for item in t + m %}
+            {% set ns.items = ns.items + [{
+              'start': item.start,
+              'end': item.end,
+              'price': ((item.price | float) / 1000 * 1.21 + fee_incl_vat + tax_incl_vat) | round(5)
+            }] %}
+          {% endfor %}
+          {{ ns.items }}
+
+
+# --- Motion change-history ---
+- triggers:
+    - trigger: state
+      entity_id:
+        - binary_sensor.beweging_tuinkamer
+      not_to:
+        - unavailable
+        - unknown
+      not_from:
+        - unavailable
+        - unknown
+  sensor:
+    - unique_id: dbf841e2-ae6f-4fc1-9534-a1046204945f
+      name: Nominal Change History
+      state: "OK"
+      attributes:
+        changes: >
+          {% set current = this.attributes.get('changes', {}) %}
+          {% set new = {trigger.entity_id: trigger.to_state.last_changed.isoformat()} %}
+          {{ dict(current, **new) }}
+
+- binary_sensor:
+    - name: "Xmas lights season"
+      unique_id: xmas_lights_season
+      icon: mdi:string-lights
+      state: >
+        {% set m = now().month %}
+        {% set d = now().day %}
+        {{ (m == 12) or (m == 1 and d <= 31) }}
+
+    - name: "PV Surplus"
+      unique_id: pv_surplus_marstek_control
+      state: "{{ states('sensor.net_power_filtered_for_control') | float(0) < -150 }}"
+      delay_on:
+        minutes: 2
+      delay_off:
+        minutes: 2
+
+    - name: "Negative Electricity Price"
+      unique_id: negative_electricity_price_marstek_control
+      state: "{{ states('sensor.electricity_price_eur_kwh') | float(0) < 0 }}"
+

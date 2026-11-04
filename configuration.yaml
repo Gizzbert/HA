@@ -1,0 +1,303 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+### Includes ###
+automation: !include automations.yaml
+mqtt: !include mqtt.yaml
+group: !include groups.yaml
+template: !include templates.yaml
+
+
+### Text to speech ###
+tts:
+  - platform: google_translate
+
+
+### HA core configs ###
+homeassistant:
+  name: Home
+  latitude: 52.09339
+  longitude: 5.00380
+  unit_system: metric
+  external_url: "https://ha.gizz.nl:443"
+  internal_url: "http://192.168.0.130:8123"
+  packages: !include_dir_named packages
+
+logger:
+  default: warning
+  logs:
+    homeassistant.core: error
+    homeassistant.components.mqtt: info
+
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+
+### Telegram ### config moved to UI
+
+
+#--------------------- Sensors -------------------#
+
+sensor:
+
+#### Mm wave sensor ###
+#  - platform: command_line
+#    name: mmWave check status
+#    json_attributes:
+#      - id
+#      - value
+#      - state
+#    command: 'curl -X GET http://192.168.0.250/binary_sensor/mmwave_presence_ld2410'
+#    value_template: "{{ value_json.state }}"
+
+### Solar panel temp ###
+# see templates.yaml
+
+#    name: mmWave API status
+#    unique_id: mmwave_api_status
+#    command: >-
+#      curl -fsS http://192.168.0.250/binary_sensor/mmwave_presence_ld2410
+#    scan_interval: 300
+#    value_template: "{{ value_json.state }}"
+#    json_attributes:
+#      - id
+#      - value
+#      - state
+
+  - platform: filter
+    name: "smoothed light living"
+    entity_id: sensor.licht_huiskamer
+    filters:
+      - filter: lowpass
+        time_constant: 10
+        precision: 2
+
+### Cumulatieve energie (kWh) → vermogen (kW) via derivative, voor Net Power (W) ###
+  - platform: derivative
+    source: sensor.electricity_total_energy_consumption_filtered
+    name: Electricity Power Consumption Derived
+    unit_time: h
+    unit: kW
+    round: 3
+    time_window: "00:10:00"
+
+  - platform: derivative
+    source: sensor.electricity_total_energy_production_filtered
+    name: Electricity Power Production Derived
+    unit_time: h
+    unit: kW
+    round: 3
+    time_window: "00:10:00"
+
+
+  - platform: integration
+    source: sensor.evcc_marstek_alpha_charge_power
+    name: "EVCC Marstek alpha grid import"
+    unique_id: evcc_marstek_alpha_grid_import
+    unit_prefix: k
+    method: left
+    round: 3
+
+  - platform: integration
+    source: sensor.evcc_marstek_beta_charge_power
+    name: "EVCC Marstek beta grid import"
+    unique_id: evcc_marstek_beta_grid_import
+    unit_prefix: k
+    method: left
+    round: 3
+
+
+#----------------------------------- COMMAND LINE -------------------#
+command_line:
+
+  - binary_sensor:
+      name: Raspi4 keepalive
+      unique_id: raspi4_keepalive
+      device_class: connectivity
+      command: 'curl -s -o /dev/null -w ''%{http_code}'' http://192.168.0.133:8123'
+      scan_interval: 300
+      value_template: >-
+        {% if value == "200" %}
+          on
+        {% else %}
+          off
+        {% endif %}
+
+  - binary_sensor:
+      name: Dietpi keepalive
+      unique_id: dietpi_keepalive
+      device_class: connectivity
+      command: 'curl -s -o /dev/null -w ''%{http_code}'' http://192.168.0.132:8123'
+      scan_interval: 300
+      value_template: >-
+        {% if value == "200" %}
+          on
+        {% else %}
+          off
+        {% endif %}
+
+  - binary_sensor:
+      name: Zigbee2MQTT keepalive
+      unique_id: zigbee2mqtt_keepalive
+      device_class: connectivity
+      command: 'curl -s -o /dev/null -w ''%{http_code}'' http://192.168.0.246:8088'
+      scan_interval: 300
+      value_template: >-
+        {% if value == "200" %}
+          on
+        {% else %}
+          off
+        {% endif %}
+
+### mmWave sensor ###
+  - binary_sensor:
+      name: mmWave check status
+      unique_id: mmwave_check_status
+      command: 'curl -fsS http://192.168.0.250/binary_sensor/mmwave_presence_ld2410'
+      scan_interval: 300
+      value_template: "{{ value_json.value | bool }}"
+
+
+#--------------------------- INPUT SELECT ----------------------#
+input_select:
+
+### FAN levels ###
+  fan_level:
+    name: Fan level
+    options:
+      - Laag
+      - Normaal
+      - Hoog
+      - Douche
+    initial: Normaal
+    icon: mdi:fan
+
+### LOG levels ###
+  log_level:
+    name: Log level
+    options:
+      - debug
+      - info
+      - warning
+      - error
+      - critical
+    initial: warning
+    icon: mdi:bug
+
+#---------------------- INPUT BOOLEAN --------------------------#
+input_boolean:
+  marstek_auto_control_enabled:
+    name: Marstek Auto Control Enabled
+
+input_number:
+  marstek_min_soc_night:
+    name: Marstek Minimum SoC Night
+    min: 15
+    max: 80
+    step: 1
+    unit_of_measurement: "%"
+    initial: 20
+
+  marstek_max_charge_power:
+    name: Marstek Max Charge Power
+    min: 100
+    max: 800
+    step: 50
+    unit_of_measurement: "W"
+    initial: 800
+
+#---------------- ALEXA ----------------------------------------#
+
+alexa:
+  smart_home:
+    filter:
+      include_entities:
+        - input_boolean.living
+        - input_boolean.dresser
+        - input_boolean.veranda
+        - input_boolean.party_lights
+        - input_boolean.xmaslights
+        - input_boolean.nightmode
+        - media_player.yas_209
+        - group.living_lights_group
+        - group.veranda_lights_group
+    entity_config:
+      input_boolean.veranda:
+        name: Veranda
+      input_boolean.party_lights:
+        name: Party lights
+      input_boolean.living:
+        name: Living
+      input_boolean.dresser:
+        name: Dresser
+      input_boolean.xmaslights:
+        name: Christmas lights
+      input_boolean.nightmode:
+        name: Night mode
+      group.living_lights_group:
+        name: Living lights
+      group.veranda_lights_group:
+        name: Veranda lights
+
+
+#----------------------------------------------------------------#
+# went to gui
+#http:
+#  ip_ban_enabled: true
+#  login_attempts_threshold: 5
+#  use_x_forwarded_for: true
+#  trusted_proxies:
+#    - 192.168.0.0/24
+#    - 172.22.0.0/24
+#    - 172.19.0.0/24
+#    - 172.18.0.0/24
+#    - 127.0.0.1
+#    - ::1
+#    - fe80::/64
+#    - fe00::/64
+#    - fd00::/64
+
+recorder:
+  exclude:
+    domains:
+      - device_tracker
+      - media_player
+      - uptime
+      - time_date
+      - worldclock
+    entity_globs:
+      - sensor.clock*
+      - sensor.date*
+      - sensor.glances*
+      - sensor.load_*m
+      - sensor.time*
+      - sensor.uptime*
+      - sensor.CPH2399*
+      - binary_sensor.CPH2399*
+    entities:
+      - camera.front_door
+      - sensor.home_assistant_v2_db
+      - sensor.memory_free
+      - sensor.memory_use
+      - sensor.memory_use_percent
+      - sensor.processor_use
+      - weather.openweathermap
+      - sun.sun
+
+###### ALARM Control Panel
+alarm_control_panel:
+  - platform: manual
+    name: Home Alarm
+#    code: 1234
+    code_arm_required: false
+    arming_time: 10 # armin state duration
+    delay_time: 10 # time of the pending state before triggering alarm
+    trigger_time: 120 # the time of the triggered state in which the alarm is firing
+    disarm_after_trigger: false
+    disarmed:
+      trigger_time: 0
+    armed_home:
+      arming_time: 0
+      delay_time: 0

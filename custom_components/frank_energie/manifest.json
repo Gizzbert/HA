@@ -1,0 +1,22 @@
+{
+    "after_dependencies": [
+        "energy",
+        "recorder"
+    ],
+    "codeowners": [
+        "@archofthings"
+    ],
+    "config_flow": true,
+    "documentation": "https://github.com/archofthings/home-assistant-frank-energie",
+    "domain": "frank_energie",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/archofthings/home-assistant-frank-energie/issues",
+    "loggers": [
+        "python_frank_energie"
+    ],
+    "name": "Frank Energie",
+    "requirements": [
+        "python-frank-energie==2026.9.20"
+    ],
+    "version": "1.8.4"
+}

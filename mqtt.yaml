@@ -1,0 +1,296 @@
+#mqtt:
+  sensor:
+
+### backup HA ###
+    - name: "HA backup copy"
+      # This sensor listens for messages on the MQTT topic "/pi/backup". It's designed to receive updates about completion of Home Assistant backup copy to Raspi4
+      state_topic: "/pi/backup"
+      expire_after: 172800
+      unique_id: 'mqtt.HA.backup.copy'
+
+### Node 1: RFM Gateway ###
+    - name: "1: Uptime"
+      unique_id: 'mqtt.node01'
+      state_topic: "home/rfm_gw/nb/node01/dev00"
+      unit_of_measurement: 'days'
+      value_template: "{{ ((value | int) /60 / 24|float) | round(1) }}"
+      expire_after: 3600
+
+
+### Node 2 Huiskamer: Temp, Hum, CO2 ###
+
+#  sensor:
+    - state_topic: "home/rfm_gw/nb/node02/dev48"
+      name: "Temperatuur huiskamer"
+      unique_id: 'mqtt.node02.temp'
+      unit_of_measurement: 'C'
+    - state_topic: "home/rfm_gw/nb/node02/dev49"
+      name: "Vocht huiskamer"
+      unique_id: 'mqtt.node02.humidity'
+      unit_of_measurement: '%'
+    - state_topic: "home/rfm_gw/nb/node02/dev50"
+      name: "Licht huiskamer"
+      unique_id: 'mqtt.node02.light'
+      unit_of_measurement: 'lux'
+    - state_topic: "home/rfm_gw/nb/node02/dev65"
+      name: "CO2 huiskamer"
+      unique_id: 'mqtt.node02.co2'
+      unit_of_measurement: 'ppm'
+    - state_topic: "home/rfm_gw/nb/node02/dev00"
+      name: "2: Uptime"
+      unique_id: 'mqtt.node02.uptime'
+      unit_of_measurement: 'days'
+      value_template: "{{ ((value | int) /60 / 24|float) | round(1) }}"
+      expire_after: 3600
+    - state_topic: "home/rfm_gw/nb/node02/dev04"
+      name: "2: VCC"
+      unique_id: 'mqtt.node02.vcc'
+      unit_of_measurement: 'Volt'
+    - name: "2: RSSI"
+      unique_id: 'mqtt.node02.rssi'
+      state_topic: "home/rfm_gw/nb/node02/dev02"
+      unit_of_measurement: 'dBm'
+    - name: "2: Update interval"
+      unique_id: 'mqtt.node02.interval'
+      state_topic: "home/rfm_gw/nb/node02/dev01"
+      unit_of_measurement: 'sec'
+
+### Node 3 badkamer: Temp, Hum ###
+
+#  sensor:
+    - name: "Temperatuur badkamer"
+      unique_id: 'mqtt.node03.temp'
+      state_topic: "home/rfm_gw/nb/node03/dev48"
+      unit_of_measurement: 'C'
+    - name: "Vocht badkamer"
+      unique_id: 'mqtt.node03.humidity'
+      state_topic: "home/rfm_gw/nb/node03/dev49"
+      unit_of_measurement: '%'
+    - name: "3: Uptime"
+      unique_id: 'mqtt.node03.uptime'
+      state_topic: "home/rfm_gw/nb/node03/dev00"
+      unit_of_measurement: 'days'
+      value_template: "{{ ((value | int) /60 / 24|float) | round(1) }}"
+      expire_after: 3600
+    - name: "3: VCC"
+      unique_id: 'mqtt.node03.vcc'
+      state_topic: "home/rfm_gw/nb/node03/dev04"
+      unit_of_measurement: 'Volt'
+    - name: "3: RSSI"
+      unique_id: 'mqtt.node03.rssi'
+      state_topic: "home/rfm_gw/nb/node03/dev02"
+      unit_of_measurement: 'dBm'
+    - name: "3: Update interval"
+      unique_id: 'mqtt.node03.interval'
+      state_topic: "home/rfm_gw/nb/node03/dev01"
+      unit_of_measurement: 'sec'
+
+
+### Node 4 tuinkamer: PIR ###
+
+#  sensor:
+    - name: "4: Uptime"
+      unique_id: 'mqtt.node04.uptime'
+      state_topic: "home/rfm_gw/nb/node04/dev00"
+      unit_of_measurement: 'days'
+      value_template: "{{ ((value | int) /60 / 24|float) | round(1) }}"
+      expire_after: 3600
+    - name: "4: VCC"
+      unique_id: 'mqtt.node04.vcc'
+      state_topic: "home/rfm_gw/nb/node04/dev04"
+      unit_of_measurement: 'Volt'
+    - name: "4: RSSI"
+      unique_id: 'mqtt.node04.rssi'
+      state_topic: "home/rfm_gw/nb/node04/dev02"
+      unit_of_measurement: 'dBm'
+    - name: "4: Update interval"
+      unique_id: 'mqtt.node04.interval'
+      state_topic: "home/rfm_gw/nb/node04/dev01"
+      unit_of_measurement: 'sec'
+
+### Node 5 meterkast: 433 lamps & Fan ###
+
+#  sensor:
+    - name: "5: Uptime"
+      unique_id: 'mqtt.node05.uptime'
+      state_topic: "home/rfm_gw/nb/node05/dev00"
+      unit_of_measurement: 'days'
+      value_template: "{{ ((value | int) /60 / 24|float) | round(1) }}"
+      expire_after: 3600
+    - name: "5: VCC"
+      unique_id: 'mqtt.node05.vcc'
+      state_topic: "home/rfm_gw/nb/node05/dev04"
+      unit_of_measurement: 'Volt'
+    - name: "5: RSSI"
+      unique_id: 'mqtt.node05.rssi'
+      state_topic: "home/rfm_gw/nb/node05/dev02"
+      unit_of_measurement: 'dBm'
+    - name: "5: Update interval"
+      unique_id: 'mqtt.node05.interval'
+      state_topic: "home/rfm_gw/nb/node05/dev01"
+      unit_of_measurement: 'sec'
+### Node 6 Kantoor Temp, Hum ###
+
+#  sensor:
+    - name: "Temperatuur kantoor"
+      unique_id: 'mqtt.node06.temp'
+      state_topic: "home/rfm_gw/nb/node06/dev48"
+      unit_of_measurement: 'C'
+    - name: "Vocht Kantoor"
+      unique_id: 'mqtt.node06.humidity'
+      state_topic: "home/rfm_gw/nb/node06/dev49"
+      unit_of_measurement: '%'
+    - name: "6: Uptime"
+      unique_id: 'mqtt.node06.uptime'
+      state_topic: "home/rfm_gw/nb/node06/dev00"
+      unit_of_measurement: 'days'
+      value_template: "{{ ((value | int) /60 / 24|float) | round(1) }}"
+      expire_after: 3600
+    - name: "6: VCC"
+      unique_id: 'mqtt.node06.vcc'
+      state_topic: "home/rfm_gw/nb/node06/dev04"
+      unit_of_measurement: 'Volt'
+    - name: "6: RSSI"
+      unique_id: 'mqtt.node06.rssi'
+      state_topic: "home/rfm_gw/nb/node06/dev02"
+      unit_of_measurement: 'dBm'
+    - name: "6: Update interval"
+      unique_id: 'mqtt.node06.interval'
+      state_topic: "home/rfm_gw/nb/node06/dev01"
+      unit_of_measurement: 'sec'
+
+### EVCC: Marstek batterijen (EVCC: + = ontladen, - = laden) ###
+
+    - name: "EVCC Marstek alpha power"
+      unique_id: evcc_marstek_alpha_power
+      state_topic: "evcc/site/battery/devices/1/power"
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+      expire_after: 300
+    - name: "EVCC Marstek beta power"
+      unique_id: evcc_marstek_beta_power
+      state_topic: "evcc/site/battery/devices/2/power"
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+      expire_after: 300
+    - name: "EVCC Marstek alpha SoC"
+      unique_id: evcc_marstek_alpha_soc
+      state_topic: "evcc/site/battery/devices/1/soc"
+      unit_of_measurement: "%"
+      device_class: battery
+      state_class: measurement
+      expire_after: 300
+    - name: "EVCC Marstek beta SoC"
+      unique_id: evcc_marstek_beta_soc
+      state_topic: "evcc/site/battery/devices/2/soc"
+      unit_of_measurement: "%"
+      device_class: battery
+      state_class: measurement
+      expire_after: 300
+    - name: "EVCC Marstek totaal SoC"
+      unique_id: evcc_marstek_total_soc
+      state_topic: "evcc/site/battery/soc"
+      unit_of_measurement: "%"
+      device_class: battery
+      state_class: measurement
+      expire_after: 300
+    - name: "EVCC huisverbruik"
+      unique_id: evcc_home_power
+      state_topic: "evcc/site/homePower"
+      unit_of_measurement: "W"
+      device_class: power
+      state_class: measurement
+      expire_after: 300
+
+    - name: "EVCC Marstek alpha grid export"
+      unique_id: evcc_marstek_alpha_grid_export
+      state_topic: "evcc/site/battery/devices/1/energy"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      expire_after: 300
+
+    - name: "EVCC Marstek beta grid export"
+      unique_id: evcc_marstek_beta_grid_export
+      state_topic: "evcc/site/battery/devices/2/energy"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      expire_after: 300
+
+    - name: "EVCC Marstek alpha returnEnergy"
+      unique_id: evcc_marstek_alpha_returnenergy
+      state_topic: "evcc/site/battery/devices/1/returnEnergy"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      expire_after: 300
+
+    - name: "EVCC Marstek beta returnEnergy"
+      unique_id: evcc_marstek_beta_returnenergy
+      state_topic: "evcc/site/battery/devices/2/returnEnergy"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      expire_after: 300
+
+    - name: "EVCC Marstek combined returnEnergy"
+      unique_id: evcc_marstek_combined_returnenergy
+      state_topic: "evcc/site/battery/returnEnergy"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      expire_after: 300
+
+### Node 4: tuinkamer beweging ###
+
+  binary_sensor:
+    - name: "Beweging tuinkamer"
+      unique_id: 'mqtt.node04.movement'
+      state_topic: "home/rfm_gw/nb/node04/dev41"
+      off_delay: 5
+
+### EVCC: laden van net ###
+    - name: "EVCC batterij laden van net"
+      unique_id: evcc_battery_grid_charge_active
+      state_topic: "evcc/site/batteryGridChargeActive"
+      payload_on: "true"
+      payload_off: "false"
+
+
+### Lamps ###
+
+  switch:
+    - unique_id: schakelaar_1
+      name: "Schakelaar (1 oud)"
+      command_topic: "home/rfm_gw/sb/node05/dev33"
+      qos: 2
+      payload_on: "111"
+      payload_off: "112"
+    - unique_id: schakelaar_2
+      name: "Schakelaar (2 oud)"
+      command_topic: "home/rfm_gw/sb/node05/dev33"
+      payload_on: "121"
+      payload_off: "122"
+      qos: 2
+    - unique_id: schakelaar_c
+      name: "Schakelaar (C)"
+      command_topic: "home/rfm_gw/sb/node05/dev33"
+      payload_on: "331"
+      payload_off: "332"
+      qos: 2
+    - unique_id: schakelaar_dim
+      name: "Schakelaar (dim)"
+      command_topic: "home/rfm_gw/sb/node05/dev33"
+      payload_on: "211"
+      payload_off: "212"
+      qos: 2
+    - unique_id: schakelaar_a
+      name: "Schakelaar (A)"
+      command_topic: "home/rfm_gw/sb/node05/dev33"
+      payload_on: "311"
+      payload_off: "312"
+      qos: 2
+

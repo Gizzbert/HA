@@ -1,0 +1,413 @@
+{
+    "config": {
+        "abort": {
+            "single_instance_allowed": "Al geconfigureerd. Er is slechts één configuratie mogelijk.",
+            "already_configured": "Account is al toegevoegd",
+            "reauth_successful": "Opnieuw inloggen gelukt",
+            "wrong_account": "Je bent ingelogd met een ander account dan voor deze integratie is ingesteld. Voeg het andere account toe als nieuwe Frank Energie-integratie.",
+            "no_sites": "Er is geen actief leveringsadres gevonden voor dit account.",
+            "reconfigure_successful": "Herconfigureren gelukt",
+            "reconfigure_not_supported": "Dit item is niet ingelogd, dus er is geen adres om te kiezen. Herconfigureren is alleen beschikbaar voor items met een Frank Energie-account."
+        },
+        "error": {
+            "cannot_connect": "Verbinden mislukt, probeer het opnieuw.",
+            "invalid_auth": "Inloggegevens niet geaccepteerd, controleer de gegevens en probeer het opnieuw.",
+            "thresholds_invalid": "De grens voor goedkope prijs moet lager zijn dan de grens voor dure prijs."
+        },
+        "step": {
+            "login": {
+                "data": {
+                    "password": "Wachtwoord",
+                    "username": "Gebruikersnaam / e-mail"
+                },
+                "title": "Inloggen bij Frank Energie"
+            },
+            "user": {
+                "data": {
+                    "authentication": "Gebruik Frank Energie-accountgegevens"
+                },
+                "title": "Wil je inloggen bij Frank Energie?",
+                "description": "Inloggen is niet nodig om deze integratie te kunnen gebruiken maar biedt wel de mogelijkheid extra gegevens op te halen."
+            },
+            "site": {
+                "title": "Kies je adres",
+                "data": {
+                    "site_reference": "Adres"
+                }
+            },
+            "reconfigure": {
+                "title": "Kies je adres",
+                "data": {
+                    "site_reference": "Adres"
+                }
+            },
+            "settings": {
+                "data": {
+                    "prices_timezone": "Tijdzone voor prijstijden",
+                    "public_price_resolution": "Prijsresolutie",
+                    "sensor_groups": "Sensorgroepen"
+                },
+                "data_description": {
+                    "prices_timezone": "Dit verandert alleen hoe de 'van'/'tot'-tijden worden weergegeven, niet de momenten die ze aanduiden. Heb je automatiseringen (bijvoorbeeld in Node-RED) die deze tekst uitlezen, dan moet je die mogelijk aanpassen nadat je deze instelling wijzigt.",
+                    "public_price_resolution": "Of de openbare prijzen van Frank Energie per kwartier of per uur worden opgehaald. De uurprijzen komen van Frank Energie en zijn gelijk aan het gemiddelde van de vier kwartieren. Niet beschikbaar als je bent ingelogd: dan volgen de prijzen je contract."
+                },
+                "description": "Kies welke sensorgroepen worden getoond. Actuele prijzen zijn altijd beschikbaar. Je kunt deze instellingen later wijzigen via Configureren.",
+                "title": "Frank Energie-instellingen"
+            },
+            "analysis": {
+                "description": "De twee berekeningen staan los van elkaar: prijsniveaus gebruiken vaste prijzen, de goedkoopste periode vindt altijd het beste blok van de dag.",
+                "sections": {
+                    "cheapest_period": {
+                        "data": {
+                            "cheapest_period_minutes": "Lengte goedkoopste periode",
+                            "cheapest_period_only_when_cheap": "Alleen als goedkoop"
+                        },
+                        "data_description": {
+                            "cheapest_period_minutes": "De lengte van de aaneengesloten periode met de laagste gemiddelde prijs waar de prijsanalyse naar zoekt.",
+                            "cheapest_period_only_when_cheap": "Zet 'Goedkoopste elektriciteitsperiode nu' alleen aan als de gemiddelde prijs van de periode op of onder de drempel voor een goedkope prijs ligt."
+                        },
+                        "description": "Zoekt elke dag het goedkoopste blok van deze lengte, ongeacht de prijs. Gebruikt door 'Goedkoopste elektriciteitsperiode nu' en 'Volgende goedkoopste elektriciteitsperiode'.",
+                        "name": "Goedkoopste periode (relatief)"
+                    },
+                    "price_levels": {
+                        "data": {
+                            "cheap_price_threshold": "Goedkoop onder (€/kWh)",
+                            "expensive_price_threshold": "Duur boven (€/kWh)",
+                            "solar_forecast_entry": "Zonprognose",
+                            "solar_threshold_kwh": "Zon-drempel"
+                        },
+                        "data_description": {
+                            "cheap_price_threshold": "All-in elektriciteitsprijzen op of onder deze grens worden als goedkoop beschouwd.",
+                            "expensive_price_threshold": "All-in elektriciteitsprijzen boven deze grens worden als duur beschouwd.",
+                            "solar_forecast_entry": "Een optionele integratie die zonopwekking voorspelt, gebruikt om goedkope blokken met voldoende verwachte zonopwekking te markeren als 'goedkoop + zon'.",
+                            "solar_threshold_kwh": "De verwachte zonopwekking (kWh per uur) vanaf waar een goedkoop blok wordt gemarkeerd als 'goedkoop + zon'."
+                        },
+                        "description": "Geeft elk uur het label goedkoop, normaal of duur op basis van deze prijzen. Gebruikt door 'Elektriciteitsprijsniveau' en 'Goedkope elektriciteitsprijs nu'.",
+                        "name": "Prijsniveaus (vaste prijzen)"
+                    }
+                },
+                "title": "Prijsanalyse-instellingen"
+            },
+            "feed_in": {
+                "title": "Instellingen terugleverprijs",
+                "description": "De terugleverprijs wordt berekend, omdat Frank Energie hem niet levert: de marktprijs inclusief btw, plus 15% met Slim terugleveren als de prijs positief is, plus je terugleververgoeding. De gesaldeerde energiebelasting zit er niet in. Gebruikt door 'Huidige terugleverprijs elektriciteit'.",
+                "data": {
+                    "feed_in_markup": "Terugleververgoeding (€/kWh)",
+                    "smart_feed_in": "Slim terugleveren"
+                },
+                "data_description": {
+                    "feed_in_markup": "De 'Inkoopvergoeding teruglevering' per kWh uit je contractbrief, inclusief btw. Meestal negatief, bijvoorbeeld -0.01271, waardoor de terugleverprijs lager wordt.",
+                    "smart_feed_in": "Zet aan als je Slim terugleveren van Frank Energie gebruikt. Telt de aangekondigde 15% bonus op bij positieve prijzen."
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Frank Energie-opties",
+                "description": "Kies welke sensorgroepen worden getoond. Actuele prijzen zijn altijd beschikbaar.",
+                "data": {
+                    "prices_timezone": "Tijdzone voor prijstijden",
+                    "public_price_resolution": "Prijsresolutie",
+                    "sensor_groups": "Sensorgroepen"
+                },
+                "data_description": {
+                    "prices_timezone": "Dit verandert alleen hoe de 'van'/'tot'-tijden worden weergegeven, niet de momenten die ze aanduiden. Heb je automatiseringen (bijvoorbeeld in Node-RED) die deze tekst uitlezen, dan moet je die mogelijk aanpassen nadat je deze instelling wijzigt.",
+                    "public_price_resolution": "Of de openbare prijzen van Frank Energie per kwartier of per uur worden opgehaald. De uurprijzen komen van Frank Energie en zijn gelijk aan het gemiddelde van de vier kwartieren. Niet beschikbaar als je bent ingelogd: dan volgen de prijzen je contract."
+                }
+            },
+            "analysis": {
+                "title": "Prijsanalyse-instellingen",
+                "description": "De twee berekeningen staan los van elkaar: prijsniveaus gebruiken vaste prijzen, de goedkoopste periode vindt altijd het beste blok van de dag.",
+                "sections": {
+                    "price_levels": {
+                        "name": "Prijsniveaus (vaste prijzen)",
+                        "description": "Geeft elk uur het label goedkoop, normaal of duur op basis van deze prijzen. Gebruikt door 'Elektriciteitsprijsniveau' en 'Goedkope elektriciteitsprijs nu'.",
+                        "data": {
+                            "cheap_price_threshold": "Goedkoop onder (€/kWh)",
+                            "expensive_price_threshold": "Duur boven (€/kWh)",
+                            "solar_forecast_entry": "Zonprognose",
+                            "solar_threshold_kwh": "Zon-drempel"
+                        },
+                        "data_description": {
+                            "cheap_price_threshold": "All-in elektriciteitsprijzen op of onder deze grens worden als goedkoop beschouwd.",
+                            "expensive_price_threshold": "All-in elektriciteitsprijzen boven deze grens worden als duur beschouwd.",
+                            "solar_forecast_entry": "Een optionele integratie die zonopwekking voorspelt, gebruikt om goedkope blokken met voldoende verwachte zonopwekking te markeren als 'goedkoop + zon'.",
+                            "solar_threshold_kwh": "De verwachte zonopwekking (kWh per uur) vanaf waar een goedkoop blok wordt gemarkeerd als 'goedkoop + zon'."
+                        }
+                    },
+                    "cheapest_period": {
+                        "name": "Goedkoopste periode (relatief)",
+                        "description": "Zoekt elke dag het goedkoopste blok van deze lengte, ongeacht de prijs. Gebruikt door 'Goedkoopste elektriciteitsperiode nu' en 'Volgende goedkoopste elektriciteitsperiode'.",
+                        "data": {
+                            "cheapest_period_minutes": "Lengte goedkoopste periode",
+                            "cheapest_period_only_when_cheap": "Alleen als goedkoop"
+                        },
+                        "data_description": {
+                            "cheapest_period_minutes": "De lengte van de aaneengesloten periode met de laagste gemiddelde prijs waar de prijsanalyse naar zoekt.",
+                            "cheapest_period_only_when_cheap": "Zet 'Goedkoopste elektriciteitsperiode nu' alleen aan als de gemiddelde prijs van de periode op of onder de drempel voor een goedkope prijs ligt."
+                        }
+                    }
+                }
+            },
+            "feed_in": {
+                "title": "Instellingen terugleverprijs",
+                "description": "De terugleverprijs wordt berekend, omdat Frank Energie hem niet levert: de marktprijs inclusief btw, plus 15% met Slim terugleveren als de prijs positief is, plus je terugleververgoeding. De gesaldeerde energiebelasting zit er niet in. Gebruikt door 'Huidige terugleverprijs elektriciteit'.",
+                "data": {
+                    "feed_in_markup": "Terugleververgoeding (€/kWh)",
+                    "smart_feed_in": "Slim terugleveren"
+                },
+                "data_description": {
+                    "feed_in_markup": "De 'Inkoopvergoeding teruglevering' per kWh uit je contractbrief, inclusief btw. Meestal negatief, bijvoorbeeld -0.01271, waardoor de terugleverprijs lager wordt.",
+                    "smart_feed_in": "Zet aan als je Slim terugleveren van Frank Energie gebruikt. Telt de aangekondigde 15% bonus op bij positieve prijzen."
+                }
+            }
+        },
+        "error": {
+            "thresholds_invalid": "De grens voor goedkope prijs moet lager zijn dan de grens voor dure prijs."
+        }
+    },
+    "selector": {
+        "prices_timezone": {
+            "options": {
+                "home_assistant": "Tijdzone van Home Assistant",
+                "utc": "UTC"
+            }
+        },
+        "public_price_resolution": {
+            "options": {
+                "pt15m": "Per kwartier",
+                "pt60m": "Per uur"
+            }
+        },
+        "sensor_groups": {
+            "options": {
+                "daily_statistics": "Dagstatistieken (laagste, hoogste, gemiddelde van vandaag)",
+                "upcoming": "Aankomende en morgen prijzen",
+                "price_analysis": "Prijsanalyse (prijsniveaus, goedkoopste periode, grafiekgegevens)",
+                "costs": "Kosten en facturen",
+                "daily_usage": "Dagelijks verbruik en kosten (gisteren)",
+                "monthly_usage": "Maandelijks verbruik en kosten",
+                "energy_statistics": "Statistieken voor het energiedashboard (verbruik en kosten per uur)",
+                "feed_in_price": "Terugleverprijs"
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "price_level": {
+                "name": "Elektriciteitsprijsniveau",
+                "state": {
+                    "cheap_solar": "Goedkoop + zon",
+                    "cheap": "Goedkoop",
+                    "normal": "Normaal",
+                    "expensive": "Duur"
+                }
+            },
+            "elec_markup": {
+                "name": "Huidige elektriciteitsprijs (all-in)"
+            },
+            "elec_market": {
+                "name": "Huidige elektriciteit marktprijs"
+            },
+            "elec_tax": {
+                "name": "Huidige elektriciteitsprijs inclusief belasting"
+            },
+            "elec_tax_vat": {
+                "name": "Huidige elektriciteit btw"
+            },
+            "elec_sourcing": {
+                "name": "Huidige elektriciteit inkoopopslag"
+            },
+            "elec_tax_only": {
+                "name": "Huidige elektriciteit alleen belasting"
+            },
+            "elec_feed_in": {
+                "name": "Huidige terugleverprijs elektriciteit"
+            },
+            "gas_markup": {
+                "name": "Huidige gasprijs (all-in)"
+            },
+            "gas_market": {
+                "name": "Huidige gas marktprijs"
+            },
+            "gas_tax": {
+                "name": "Huidige gasprijs inclusief belasting"
+            },
+            "gas_tax_vat": {
+                "name": "Huidige gas btw"
+            },
+            "gas_sourcing": {
+                "name": "Huidige gas inkoopopslag"
+            },
+            "gas_tax_only": {
+                "name": "Huidige gas alleen belasting"
+            },
+            "gas_min": {
+                "name": "Laagste gasprijs vandaag"
+            },
+            "gas_max": {
+                "name": "Hoogste gasprijs vandaag"
+            },
+            "elec_min": {
+                "name": "Laagste energieprijs vandaag"
+            },
+            "elec_max": {
+                "name": "Hoogste energieprijs vandaag"
+            },
+            "elec_avg": {
+                "name": "Gemiddelde elektriciteitsprijs vandaag"
+            },
+            "elec_next": {
+                "name": "Volgende elektriciteitsprijs (all-in)"
+            },
+            "elec_tomorrow_avg": {
+                "name": "Gemiddelde elektriciteitsprijs morgen"
+            },
+            "elec_tomorrow_min": {
+                "name": "Laagste elektriciteitsprijs morgen"
+            },
+            "elec_tomorrow_max": {
+                "name": "Hoogste elektriciteitsprijs morgen"
+            },
+            "elec_upcoming_min": {
+                "name": "Laagste aankomende elektriciteitsprijs"
+            },
+            "elec_upcoming_max": {
+                "name": "Hoogste aankomende elektriciteitsprijs"
+            },
+            "gas_tomorrow_avg": {
+                "name": "Gemiddelde gasprijs morgen"
+            },
+            "actual_costs_until_last_meter_reading_date": {
+                "name": "Werkelijke kosten deze maand"
+            },
+            "expected_costs_until_last_meter_reading_date": {
+                "name": "Verwachte kosten tot nu"
+            },
+            "costs_difference_until_last_meter_reading_date": {
+                "name": "Verschil kosten tot nu"
+            },
+            "expected_costs_this_month": {
+                "name": "Verwachte kosten deze maand"
+            },
+            "invoice_previous_period": {
+                "name": "Factuur vorige periode"
+            },
+            "invoice_current_period": {
+                "name": "Factuur huidige periode"
+            },
+            "invoice_upcoming_period": {
+                "name": "Factuur volgende periode"
+            },
+            "elec_usage_yesterday": {
+                "name": "Elektriciteitsverbruik gisteren"
+            },
+            "elec_costs_yesterday": {
+                "name": "Elektriciteitskosten gisteren"
+            },
+            "gas_usage_yesterday": {
+                "name": "Gasverbruik gisteren"
+            },
+            "gas_costs_yesterday": {
+                "name": "Gaskosten gisteren"
+            },
+            "feed_in_yesterday": {
+                "name": "Teruglevering gisteren"
+            },
+            "feed_in_revenue_yesterday": {
+                "name": "Terugleveropbrengst gisteren"
+            },
+            "elec_usage_month": {
+                "name": "Elektriciteitsverbruik deze maand"
+            },
+            "elec_costs_month": {
+                "name": "Elektriciteitskosten deze maand"
+            },
+            "gas_usage_month": {
+                "name": "Gasverbruik deze maand"
+            },
+            "gas_costs_month": {
+                "name": "Gaskosten deze maand"
+            },
+            "feed_in_month": {
+                "name": "Teruglevering deze maand"
+            },
+            "feed_in_revenue_month": {
+                "name": "Terugleveropbrengst deze maand"
+            },
+            "fixed_costs_month": {
+                "name": "Vaste kosten deze maand (verwacht)"
+            },
+            "fixed_costs_month_until_now": {
+                "name": "Vaste kosten deze maand tot nu"
+            },
+            "price_analysis_today": {
+                "name": "Elektriciteitsprijsanalyse vandaag"
+            },
+            "price_analysis_tomorrow": {
+                "name": "Elektriciteitsprijsanalyse morgen"
+            },
+            "next_cheapest_period": {
+                "name": "Volgende goedkoopste elektriciteitsperiode"
+            },
+            "costs_this_year": {
+                "name": "Totaal dit jaar"
+            },
+            "costs_previous_year": {
+                "name": "Totaal vorig jaar"
+            },
+            "price_resolution": {
+                "name": "Prijsresolutie",
+                "state": {
+                    "pt15m": "Per kwartier",
+                    "pt60m": "Per uur"
+                }
+            }
+        },
+        "binary_sensor": {
+            "tomorrow_prices_available": {
+                "name": "Prijzen morgen beschikbaar"
+            },
+            "cheap_price_now": {
+                "name": "Goedkope elektriciteitsprijs nu"
+            },
+            "cheapest_period_now": {
+                "name": "Goedkoopste elektriciteitsperiode nu"
+            }
+        }
+    },
+    "services": {
+        "get_prices": {
+            "name": "Prijzen ophalen",
+            "description": "Geeft de gecachte elektriciteits- en gasprijzen van een Frank Energie-configuratie-item terug, zonder de Frank Energie API te benaderen.",
+            "fields": {
+                "config_entry_id": {
+                    "name": "Configuratie-item",
+                    "description": "Het Frank Energie-configuratie-item om prijzen voor op te halen."
+                },
+                "start": {
+                    "name": "Starttijd",
+                    "description": "Geef alleen prijsblokken terug die na dit tijdstip eindigen. Standaard worden alle beschikbare blokken meegenomen."
+                },
+                "end": {
+                    "name": "Eindtijd",
+                    "description": "Geef alleen prijsblokken terug die voor dit tijdstip beginnen. Standaard worden alle beschikbare blokken meegenomen."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "entry_not_found": {
+            "message": "Frank Energie-configuratie-item \"{entry_id}\" niet gevonden."
+        },
+        "entry_not_loaded": {
+            "message": "Frank Energie-configuratie-item \"{entry_id}\" is niet geladen."
+        },
+        "invalid_period": {
+            "message": "De starttijd moet voor de eindtijd liggen."
+        }
+    },
+    "title": "Frank Energie"
+}

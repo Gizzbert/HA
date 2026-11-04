@@ -1,0 +1,1589 @@
+- id: '1677411831789'
+  alias: 'Lights: Dresser via rocker switch miniR2'
+  description: ''
+  triggers:
+  - entity_id:
+    - switch.minir2_living
+    to: 'on'
+    trigger: state
+  - entity_id:
+    - switch.minir2_living
+    to: 'off'
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.dresser
+        state: 'off'
+      sequence:
+      - metadata: {}
+        data: {}
+        target:
+          entity_id: input_boolean.dresser
+        action: input_boolean.turn_on
+    - conditions:
+      - condition: state
+        entity_id: input_boolean.dresser
+        state: 'on'
+      sequence:
+      - metadata: {}
+        data: {}
+        target:
+          entity_id: input_boolean.dresser
+        action: input_boolean.turn_off
+  mode: single
+- id: '1677425775528'
+  alias: Vakantie - Anti inbraak lampje
+  description: ''
+  trigger:
+  - platform: sun
+    event: sunset
+  condition:
+  - condition: state
+    entity_id: input_boolean.vacation
+    state: 'on'
+  action:
+  - delay:
+      hours: 0
+      minutes: 47
+      seconds: 0
+      milliseconds: 0
+  - service: switch.turn_on
+    data: {}
+    target:
+      entity_id:
+      - switch.wifi_stopcontact_1
+  - delay:
+      hours: 1
+      minutes: 10
+      seconds: 0
+      milliseconds: 0
+  - service: switch.turn_off
+    data: {}
+    target:
+      entity_id:
+      - switch.wifi_stopcontact_1
+  mode: single
+- id: '1677426512353'
+  alias: Reload tuya veranda config
+  description: workaround for swithc becoming unavailable
+  triggers:
+  - entity_id:
+    - light.veranda_dimmer_switch
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+    trigger: state
+  conditions: []
+  actions:
+  - data: {}
+    target:
+      entity_id:
+      - light.veranda_dimmer_switch
+    action: homeassistant.reload_config_entry
+  mode: single
+- id: '1679348223570'
+  alias: Node 1 uptime request
+  description: ''
+  trigger:
+  - platform: time_pattern
+    minutes: /5
+  condition: []
+  action:
+  - service: mqtt.publish
+    data:
+      topic: home/rfm_gw/sb/node01/dev00
+      payload: Uptime
+  mode: single
+- id: '1679350655258'
+  alias: 'Fan: hum - day max'
+  description: ''
+  trigger:
+  - platform: mqtt
+    topic: home/rfm_gw/nb/node03/dev49
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.vocht_badkamer
+    above: 90
+  - condition: time
+    after: 08:00:00
+    before: '20:00:00'
+  action:
+  - service: input_select.select_option
+    data:
+      option: Douche
+    target:
+      entity_id: input_select.fan_level
+  - delay:
+      minutes: 25
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  mode: single
+- id: '1679350885909'
+  alias: 'Fan: hum - day high'
+  description: ''
+  trigger:
+  - platform: mqtt
+    topic: home/rfm_gw/nb/node03/dev49
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.vocht_badkamer
+    above: 75
+    below: 90
+  - condition: time
+    after: 07:00:00
+    before: '23:00:00'
+  action:
+  - service: input_select.select_option
+    data:
+      option: Hoog
+    target:
+      entity_id: input_select.fan_level
+  - delay:
+      minutes: 25
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  - if:
+    - condition: time
+      after: '23:00:00'
+      before: 07:00:00
+    then:
+    - service: input_select.select_option
+      metadata: {}
+      data:
+        option: Laag
+      target:
+        entity_id: input_select.fan_level
+  mode: single
+- id: '1679352348523'
+  alias: 'Fan: CO2 - day'
+  description: ''
+  trigger:
+  - platform: mqtt
+    topic: home/rfm_gw/nb/node02/dev65
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.co2_huiskamer
+    above: 1000
+  - condition: time
+    after: 07:00:00
+    before: '23:00:00'
+  action:
+  - service: input_select.select_option
+    data:
+      option: Hoog
+    target:
+      entity_id: input_select.fan_level
+  - delay:
+      minutes: 25
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  mode: single
+- id: '1679352695764'
+  alias: 'Fan: CO2 - night'
+  description: ''
+  trigger:
+  - platform: mqtt
+    topic: home/rfm_gw/nb/node02/dev65
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.co2_huiskamer
+    above: 1000
+  - condition: time
+    after: '23:00:00'
+    before: 07:00:00
+  action:
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  - delay:
+      minutes: 25
+  - if:
+    - condition: time
+      before: 07:00:00
+      after: '23:00:00'
+    then:
+    - service: input_select.select_option
+      data:
+        option: Laag
+  mode: single
+- id: '1679352825328'
+  alias: 'Fan: night'
+  description: ''
+  trigger:
+  - platform: time
+    at: '23:00:00'
+  condition: []
+  action:
+  - service: input_select.select_option
+    data:
+      option: Laag
+    target:
+      entity_id: input_select.fan_level
+  - wait_for_trigger:
+    - platform: time
+      at: 07:00:00
+  - service: input_select.select_option
+    data:
+      option: Normaal
+    target:
+      entity_id: input_select.fan_level
+  mode: single
+- id: '1679422364720'
+  alias: 'Alarm: night trigger'
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.alarm_motion_sensors
+    to: 'on'
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_night
+  action:
+  - service: alarm_control_panel.alarm_trigger
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+- id: '1679424039269'
+  alias: 'Alarm: vacation trigger'
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.alarm_motion_sensors
+    to: 'on'
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_vacation
+  action:
+  - service: alarm_control_panel.alarm_trigger
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+- id: '1679424681830'
+  alias: 'Alarm: blink lights & call phone'
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id: alarm_control_panel.home_alarm
+    to: triggered
+    id: alarm-is-triggered
+  - trigger: state
+    entity_id: alarm_control_panel.home_alarm
+    to: disarmed
+    id: alarm-is-disarmed
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: alarm-is-triggered
+      sequence:
+      - data:
+          topic: /openhab/notification/alarm
+          payload: PIR tuinkamer alarm
+        action: mqtt.publish
+      - target:
+          entity_id: media_player.yas_209
+        data:
+          volume_level: 0.5
+        action: media_player.volume_set
+      - parallel:
+        - repeat:
+            while:
+            - condition: state
+              entity_id: alarm_control_panel.home_alarm
+              state: triggered
+            - condition: template
+              value_template: '{{ repeat.index <= 60 }}'
+            sequence:
+            - target:
+                entity_id: input_boolean.living
+              action: input_boolean.turn_on
+            - delay:
+                seconds: 1
+            - target:
+                entity_id: input_boolean.living
+              action: input_boolean.turn_off
+            - delay:
+                seconds: 1
+        - repeat:
+            while:
+            - condition: state
+              entity_id: alarm_control_panel.home_alarm
+              state: triggered
+            - condition: template
+              value_template: '{{ repeat.index <= 3 }}'
+            sequence:
+            - target:
+                entity_id: media_player.yas_209
+              data:
+                media:
+                  media_content_id: media-source://media_source/local/TF036.WAV
+                  media_content_type: audio/x-wav
+                  metadata:
+                    title: TF036.WAV
+                    thumbnail:
+                    media_class: music
+                    children_media_class:
+                    navigateIds:
+                    - {}
+                    - media_content_type: app
+                      media_content_id: media-source://media_source
+                    browse_entity_id: media_player.yas_209
+              action: media_player.play_media
+    - conditions:
+      - condition: trigger
+        id: alarm-is-disarmed
+      sequence:
+      - target:
+          entity_id: input_boolean.living
+        action: input_boolean.turn_off
+      - target:
+          entity_id: media_player.yas_209
+        data:
+          volume_level: 0.1
+        action: media_player.volume_set
+  mode: restart
+- id: '1679425661950'
+  alias: 'Alarm: night arm'
+  description: ''
+  trigger:
+  - platform: time
+    at: 00:55:00
+  condition:
+  - condition: state
+    entity_id: input_boolean.pause_alarm
+    state: 'off'
+  action:
+  - service: alarm_control_panel.alarm_arm_night
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+- id: '1679428820897'
+  alias: 'Alarm: night disarm'
+  description: ''
+  trigger:
+  - platform: time
+    at: 06:00:00
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: armed_night
+  action:
+  - service: alarm_control_panel.alarm_disarm
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+- id: '1679511460100'
+  alias: 'Lights: master switch Living'
+  description: any change to device will reflect on boolean state and vv
+  triggers:
+  - entity_id:
+    - input_boolean.living
+    - switch.wifi_stopcontact_7
+    - switch.sf501a
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.wifi_stopcontact_7'')
+          }}'
+      sequence:
+      - target:
+          entity_id: switch.wifi_stopcontact_7
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.sf501a'') }}'
+      sequence:
+      - target:
+          entity_id: switch.sf501a
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.living'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.living
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+- id: '1679858813325'
+  alias: 'Alarm: disarm with rocker switch'
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - switch.minir2_living
+    to: 'on'
+  - platform: state
+    entity_id:
+    - switch.minir2_living
+    to: 'off'
+  condition:
+  - condition: state
+    entity_id: alarm_control_panel.home_alarm
+    state: triggered
+  action:
+  - service: alarm_control_panel.alarm_disarm
+    data: {}
+    target:
+      entity_id: alarm_control_panel.home_alarm
+  mode: single
+- id: '1679866899444'
+  alias: 'Alarm: alert on movement detected in hallway'
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.pir1_occupancy
+    to: 'on'
+  condition:
+  - condition: time
+    after: 00:00:00
+    before: 06:00:00
+  action:
+  - service: notify.mobile_app_oneplus
+    data:
+      message: yo, busy in hallway {{ states('sensor.time') }}
+  mode: single
+- id: '1680617045184'
+  alias: 'Light: smart switch veranda'
+  description: ''
+  trigger:
+  - platform: device
+    domain: mqtt
+    device_id: 5bbf38681c04d51385dae88fcac0ef14
+    type: action
+    subtype: single
+    discovery_id: 0xa4c138283ccf308f action_single
+  condition: []
+  action:
+  - service: light.toggle
+    target:
+      entity_id:
+      - light.veranda_dimmer_switch
+    data: {}
+  - service: notify.mobile_app_oneplus
+    data:
+      message: Veranda light toggled
+    enabled: true
+  mode: single
+- id: '1710795321873'
+  alias: Goodwe Update Pattern
+  description: ''
+  trigger:
+  - platform: time_pattern
+    seconds: /30
+  condition:
+  - condition: sun
+    before: sunset
+    after: sunrise
+    after_offset: -00:30:00
+  action:
+  - service: homeassistant.update_entity
+    metadata: {}
+    data: {}
+    target:
+      entity_id: sensor.pv_power
+  mode: single
+- id: '1711555664461'
+  alias: 'Alert: Goodwe temp > 55'
+  description: ''
+  triggers:
+  - entity_id:
+    - sensor.pv_temperature
+    above: 55
+    trigger: numeric_state
+  conditions: []
+  actions:
+  - metadata: {}
+    data:
+      message: 'HA: Goodwe boven 55 graden'
+    action: telegram_bot.send_message
+  - action: notify.mobile_app_seeker
+    metadata: {}
+    data:
+      message: Goodwe > 55 graden
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: 0
+      retain: false
+      topic: /openhab/notification/alert
+      payload: Goodwe > 55 graden
+  mode: single
+- id: '1711986940068'
+  alias: Backup HA
+  description: Backup Home Assistant every night at 3 AM
+  trigger:
+    platform: time
+    at: 03:00:00
+  condition: []
+  action:
+    alias: Create backup now
+    service: backup.create
+  mode: single
+- id: '1712004944449'
+  alias: 'Lights: Veranda'
+  description: ''
+  trigger:
+  - platform: sun
+    event: sunset
+    offset: 0
+  condition: []
+  action:
+  - service: input_boolean.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - input_boolean.party_lights
+      - input_boolean.veranda
+  - delay:
+      hours: 1
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  - service: input_boolean.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - input_boolean.party_lights
+      - input_boolean.veranda
+  mode: single
+- id: '1712219986013'
+  alias: Turn on heatpanel kantoor
+  description: On weekdays when it's cold and no vacation
+  triggers:
+  - at: 06:30:00
+    trigger: time
+  conditions:
+  - condition: time
+    weekday:
+    - mon
+    - tue
+    - thu
+    - fri
+  - condition: numeric_state
+    entity_id: sensor.temperatuur_kantoor
+    below: 19
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: input_boolean.vacation
+      state: 'on'
+  actions:
+  - metadata: {}
+    data: {}
+    target:
+      entity_id: switch.wifi_stopcontact_1
+    action: switch.turn_on
+  - delay:
+      hours: 0
+      minutes: 30
+      seconds: 0
+      milliseconds: 0
+  - metadata: {}
+    data: {}
+    target:
+      entity_id: switch.wifi_stopcontact_1
+    action: switch.turn_off
+  mode: single
+- id: '1712526099354'
+  alias: 'Alert: Backup copy monitor'
+  description: ''
+  triggers:
+  - entity_id:
+    - sensor.ha_backup_copy
+    to: unavailable
+    trigger: state
+  - entity_id:
+    - sensor.ha_backup_copy
+    to: NOK
+    trigger: state
+  conditions: []
+  actions:
+  - metadata: {}
+    data:
+      qos: '1'
+      topic: /pi/emailcommand
+      payload: HA Backup copy sensor in HA NOK/Unavailable
+    action: mqtt.publish
+  mode: single
+- id: '1712584462736'
+  alias: 'Alert: Droger klaar'
+  description: ''
+  use_blueprint:
+    path: Blackshome/appliance-notifications.yaml
+    input:
+      power_sensor: sensor.sonoff_1001e8bd71_power
+      start_appliance_power: 2000
+      end_appliance_power: 100
+      include_end_notify: enable_end_notify_options
+      end_notify_device:
+      - d5eab0b93a68c1f8aa3dcb5ed8e659b8
+      end_message_title: Droger is klaar
+      end_message: Yippee the dryer is finished!
+      power_consumption_sensor: sensor.sonoff_1001e8bd71_power
+      include_power_tracking: enable_power_tracking
+      end_custom_actions:
+      - target:
+          entity_id: media_player.yamaha_soundbar
+        data:
+          media:
+            media_content_id: media-source://tts/google_translate?message=Droger+is+klaar%21&language=nl
+            media_content_type: provider
+            metadata:
+              title: Droger is klaar!
+              thumbnail: https://brands.home-assistant.io/_/google_translate/logo.png
+              media_class: app
+              children_media_class:
+              navigateIds:
+              - {}
+              - media_content_type: app
+                media_content_id: media-source://tts
+              - media_content_type: provider
+                media_content_id: media-source://tts/google_translate?message=Droger+is+klaar%21&language=nl
+        action: media_player.play_media
+      start_title: Droger
+- id: '1712585030768'
+  alias: 'Alert: Wasmachine klaar melding'
+  description: ''
+  use_blueprint:
+    path: Blackshome/appliance-notifications.yaml
+    input:
+      power_sensor: sensor.sonoff_1001e8c75f_power
+      start_appliance_power: 1500
+      end_appliance_power: 4
+      include_end_notify: enable_end_notify_options
+      end_notify_device:
+      - d5eab0b93a68c1f8aa3dcb5ed8e659b8
+      end_message_title: Wasmachine is klaar
+      include_power_tracking: enable_power_tracking
+      power_consumption_sensor: sensor.sonoff_1001e8c75f_power
+      end_custom_actions:
+      - target:
+          entity_id: media_player.soundbar
+        data:
+          media:
+            media_content_id: media-source://tts/google_translate?message=Wasmachine+is+klaar&language=nl
+            media_content_type: provider
+            metadata:
+              title: Wasmachine is klaar
+              thumbnail: https://brands.home-assistant.io/_/google_translate/logo.png
+              media_class: app
+              children_media_class:
+              navigateIds:
+              - {}
+              - media_content_type: app
+                media_content_id: media-source://tts
+              - media_content_type: provider
+                media_content_id: media-source://tts/google_translate?message=Wasmachine+is+klaar&language=nl
+        action: media_player.play_media
+- id: '1714592686915'
+  alias: 'Alert: Zigbee2MQTT keepalive notification'
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.zigbee2mqtt_keepalive
+    to: 'OFF'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+    trigger: state
+  conditions: []
+  actions:
+  - metadata: {}
+    data:
+      message: Zigbee2MQTT coordinator down
+    action: notify.telegram
+  - metadata: {}
+    data:
+      message: Zigbee2MQTT coordinator down
+    action: notify.mobile_app_oneplus
+  mode: single
+- id: '1714593387813'
+  alias: 'Alert: Raspi4 keepalive notification'
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.raspi4_keepalive
+    to: 'OFF'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+    trigger: state
+  conditions: []
+  actions:
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: 0
+      retain: false
+      topic: /openhab/notification/alert
+      payload: Raspi4 keepalive fail
+  mode: single
+- id: '1714763910008'
+  alias: Quooker night off
+  description: ''
+  trigger:
+  - platform: time
+    at: 00:01:00
+  condition: []
+  action:
+  - service: switch.turn_off
+    metadata: {}
+    data: {}
+    target:
+      device_id: 0dce0f2819b7e4b6cb6dc4e52d432a29
+  - delay:
+      hours: 6
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: input_boolean.vacation
+      state: 'on'
+  - service: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      device_id: 0dce0f2819b7e4b6cb6dc4e52d432a29
+  mode: single
+- id: '1732290467086'
+  alias: 'Timer: Action timer automation'
+  description: ''
+  triggers:
+  - type: turned_on
+    device_id: 4f18bb1c2632223a0e26d94e623120aa
+    entity_id: d3f0976c6b93f4a4c61ef34a7ff001cf
+    domain: switch
+    trigger: device
+  conditions: []
+  actions:
+  - target:
+      entity_id:
+      - time.wifi_stopcontact_1_timer
+    data:
+      value: '30'
+    action: number.set_value
+    enabled: false
+  - action: time.set_value
+    metadata: {}
+    target:
+      entity_id: time.wifi_stopcontact_1_timer
+    data:
+      time: 00:30:00
+  mode: single
+- id: '1735900874777'
+  alias: 'Lights: master switch Dresser'
+  description: any change to device will reflect on boolean state and vv
+  triggers:
+  - entity_id:
+    - input_boolean.dresser
+    - switch.wifi_stopcontact_6_none
+    - switch.sf501b
+    - input_boolean.christmas_tree
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.wifi_stopcontact_6_none'')
+          }}'
+      sequence:
+      - target:
+          entity_id: switch.wifi_stopcontact_6_none
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.sf501b'') }}'
+      sequence:
+      - target:
+          entity_id: switch.sf501b
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.dresser'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.dresser
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.christmas_tree'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.christmas_tree
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+- id: '1735901313144'
+  alias: 'Lights: living lights'
+  description: Controls living room and dresser lights based on time of day and week
+  triggers:
+  - trigger: time
+    at: 06:40:00
+  - trigger: time
+    at: 08:00:00
+  - trigger: sun
+    event: sunset
+    offset: -00:15:00
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: time
+        weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+      - condition: sun
+        before: sunrise
+        before_offset: +00:20:00
+      - condition: time
+        after: 06:39:00
+        before: 06:41:00
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.dresser
+        data: {}
+      - wait_for_trigger:
+        - trigger: sun
+          event: sunrise
+          offset: +00:20:00
+      - condition: state
+        entity_id: input_boolean.xmas_override
+        state: 'off'
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.dresser
+        data: {}
+    - conditions:
+      - condition: time
+        weekday:
+        - sat
+        - sun
+      - condition: sun
+        before: sunrise
+        before_offset: +00:20:00
+      - condition: time
+        after: 07:59:00
+        before: 08:01:00
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.living
+        data: {}
+      - wait_for_trigger:
+        - trigger: sun
+          event: sunrise
+          offset: +00:20:00
+      - condition: state
+        entity_id: input_boolean.xmas_override
+        state: 'off'
+        enabled: true
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.living
+        data: {}
+    - conditions:
+      - condition: sun
+        after: sunset
+        after_offset: -00:16:00
+        before: sunset
+        before_offset: -00:14:00
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.living
+        data: {}
+      - wait_for_trigger:
+        - trigger: time
+          at: 00:30:00
+      - condition: state
+        entity_id: input_boolean.xmas_override
+        state: 'off'
+        enabled: false
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+          - input_boolean.living
+          - input_boolean.dresser
+        data: {}
+  mode: single
+- id: '1735902248404'
+  alias: 'Lights: master switch Party lights'
+  description: any change to device will reflect on boolean state and vv
+  triggers:
+  - entity_id:
+    - input_boolean.party_lights
+    - switch.wifi_stopcontact_8
+    - switch.sf501d
+    trigger: state
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.wifi_stopcontact_8'')
+          }}'
+      sequence:
+      - target:
+          entity_id: switch.wifi_stopcontact_8
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.sf501d'') }}'
+      sequence:
+      - target:
+          entity_id: switch.sf501d
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.party_lights'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.party_lights
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+- id: '1735905074513'
+  alias: 'Lights: master switch Veranda'
+  description: any change to device will reflect on boolean state and vv
+  triggers:
+  - entity_id:
+    - input_boolean.veranda
+    - light.veranda_dimmer_switch
+    - switch.sf501d
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''light.veranda_dimmer_switch'')
+          }}'
+      sequence:
+      - target:
+          entity_id: light.veranda_dimmer_switch
+        action: '{% if trigger.to_state.state == ''on'' %}light.turn_on{% else %}light.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.sf501d'') }}'
+      sequence:
+      - target:
+          entity_id: switch.sf501d
+        action: '{% if trigger.to_state.state == ''on'' %}switch.turn_on{% else %}switch.turn_off{%
+          endif %}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.veranda'')
+          }}'
+      sequence:
+      - target:
+          entity_id: input_boolean.veranda
+        action: '{% if trigger.to_state.state == ''on'' %}input_boolean.turn_on{%
+          else %}input_boolean.turn_off{% endif %}'
+  mode: single
+- id: '1738235588973'
+  alias: PIR state update
+  description: Set motion sensor state to "Clear" if unknown when MQTT message received
+  triggers:
+  - topic: home/rfm_gw/nb/node04/dev02
+    trigger: mqtt
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.beweging_tuinkamer
+    state: unknown
+  actions:
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      qos: '1'
+      topic: home/rfm_gw/nb/node04/dev41
+      payload: 'OFF'
+- id: '1740054957639'
+  alias: 'Alert: Node 1 Status'
+  description: Combined online/offline status monitoring for Node 1
+  triggers:
+  - entity_id: sensor.1_uptime
+    from: unavailable
+    trigger: state
+  - entity_id: sensor.1_uptime
+    to: unavailable
+    trigger: state
+  conditions: []
+  actions:
+  - data:
+      topic: /openhab/notification/alert
+      payload: "{% if trigger.to_state.state == 'unavailable' %}\n  Node 1 (RFM868
+        to eth gateway) is unavailable\n{% else %}\n  Node 1 (RFM868 to eth gateway)
+        is online\n{% endif %}"
+    action: mqtt.publish
+  mode: single
+- id: '1740055340116'
+  alias: 'Alert: Node 2 Status'
+  description: Combined status monitoring for CO2/Temp/Humidity node
+  triggers:
+  - entity_id: sensor.2_uptime
+    from: unavailable
+    trigger: state
+  - entity_id: sensor.2_uptime
+    to: unavailable
+    trigger: state
+  conditions: []
+  actions:
+  - data:
+      topic: /openhab/notification/alert
+      payload: "{% if trigger.to_state.state == 'unavailable' %}\n  Node 2 (CO2, Temp,
+        Hum - boven) is unavailable\n{% else %}\n  Node 2 (CO2, Temp, Hum - boven)
+        is online\n{% endif %}"
+    action: mqtt.publish
+  mode: single
+- id: '1740055456222'
+  alias: 'Alert: Node 3 Status'
+  description: Bathroom temperature/humidity node monitoring
+  triggers:
+  - entity_id: sensor.3_uptime
+    from: unavailable
+    trigger: state
+  - entity_id: sensor.3_uptime
+    to: unavailable
+    trigger: state
+  conditions: []
+  actions:
+  - data:
+      topic: /openhab/notification/alert
+      payload: "{% if trigger.to_state.state == 'unavailable' %}\n  Node 3 (temp,
+        hum - badkamer) is unavailable\n{% else %}\n  Node 3 (temp, hum - badkamer)
+        is online\n{% endif %}"
+    action: mqtt.publish
+  mode: single
+- id: '1740055592901'
+  alias: 'Alert: Node 4 Status'
+  description: PIR motion sensor monitoring in garden room
+  triggers:
+  - entity_id: sensor.4_uptime
+    from: unavailable
+    trigger: state
+  - entity_id: sensor.4_uptime
+    to: unavailable
+    trigger: state
+  conditions: []
+  actions:
+  - data:
+      topic: /openhab/notification/alert
+      payload: "{% if trigger.to_state.state == 'unavailable' %}\n  Node 4 (PIR -
+        tuinkamer) is unavailable\n{% else %}\n  Node 4 (PIR - tuinkamer) is online\n{%
+        endif %}"
+    action: mqtt.publish
+  mode: single
+- id: '1740055705707'
+  alias: 'Alert: Node 5 Status'
+  description: Fan control gateway monitoring via 433MHz
+  triggers:
+  - entity_id: sensor.5_uptime
+    from: unavailable
+    trigger: state
+  - entity_id: sensor.5_uptime
+    to: unavailable
+    trigger: state
+  conditions: []
+  actions:
+  - data:
+      topic: /openhab/notification/alert
+      payload: "{% if trigger.to_state.state == 'unavailable' %}\n  Node 5 (FAN, 433
+        - gateway) is unavailable\n{% else %}\n  Node 5 (FAN, 433 - gateway) is online\n{%
+        endif %}"
+    action: mqtt.publish
+  mode: single
+- id: '1740055837691'
+  alias: 'Alert: Node 6 Status'
+  description: Office temperature/humidity monitoring
+  triggers:
+  - entity_id: sensor.6_uptime
+    from: unavailable
+    trigger: state
+  - entity_id: sensor.6_uptime
+    to: unavailable
+    trigger: state
+  conditions: []
+  actions:
+  - data:
+      topic: /openhab/notification/alert
+      payload: "{% if trigger.to_state.state == 'unavailable' %}\n  Node 6 (temp,
+        hum - kantoor) is unavailable\n{% else %}\n  Node 6 (temp, hum - kantoor)
+        is online\n{% endif %}"
+    action: mqtt.publish
+  mode: single
+- id: '1740062561882'
+  alias: 433 Schakelaar signal repeat
+  description: Handles repeated on/off actions for multiple switches.
+  triggers:
+  - entity_id:
+    - switch.schakelaar_1_oud
+    - switch.schakelaar_2_oud
+    - switch.schakelaar_a
+    - switch.schakelaar_c
+    trigger: state
+  conditions: []
+  actions:
+  - variables:
+      target_switch: "{% if trigger.entity_id == 'switch.schakelaar_1_oud' %}\n  switch.schakelaar_1_oud\n{%
+        elif trigger.entity_id == 'switch.schakelaar_2_oud' %}\n  switch.schakelaar_2_oud\n{%
+        elif trigger.entity_id == 'switch.schakelaar_a' %}\n  switch.schakelaar_a\n{%
+        elif trigger.entity_id == 'switch.schakelaar_c' %}\n  switch.schakelaar_c\n{%
+        endif %}\n"
+      repeat_count: "{% if trigger.entity_id in ['switch.schakelaar_1_oud', 'switch.schakelaar_2_oud']
+        %}\n  5\n{% else %}\n  3\n{% endif %}\n"
+      delay_seconds: "{% if trigger.entity_id in ['switch.schakelaar_1_oud', 'switch.schakelaar_2_oud']
+        %}\n  2\n{% else %}\n  1\n{% endif %}\n"
+      action_to_perform: "{% if trigger.to_state.state == 'on' %}\n  switch.turn_on\n{%
+        else %}\n  switch.turn_off\n{% endif %}\n"
+  - repeat:
+      count: '{{ repeat_count }}'
+      sequence:
+      - target:
+          entity_id: '{{ target_switch }}'
+        action: '{{ action_to_perform }}'
+      - delay:
+          seconds: '{{ delay_seconds }}'
+  mode: single
+- id: '1740068884103'
+  alias: 'Alert: Dietpi keepalive notification'
+  description: ''
+  triggers:
+  - entity_id:
+    - binary_sensor.dietpi_keepalive
+    to: 'OFF'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+    trigger: state
+  conditions: []
+  actions:
+  - metadata: {}
+    data:
+      message: Dietpi down
+    action: notify.mobile_app_oneplus
+    enabled: false
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: 0
+      retain: false
+      topic: /openhab/notification/alert
+      payload: Dietpi keepalive fail
+  mode: single
+- id: '1765522041369'
+  alias: 'Lights: Xmas'
+  description: ''
+  triggers:
+  - trigger: time
+    at: 06:39:00
+  - trigger: time
+    at: '15:00:00'
+  conditions: []
+  actions:
+  - action: input_boolean.turn_on
+    target:
+      entity_id:
+      - input_boolean.dresser
+      - input_boolean.party_lights
+      - input_boolean.xmaslights
+      - input_boolean.xmas_override
+    data: {}
+  - wait_for_trigger:
+    - trigger: time
+      at: '10:00:00'
+    - trigger: time
+      at: 00:30:00
+  - action: input_boolean.turn_off
+    target:
+      entity_id:
+      - input_boolean.dresser
+      - input_boolean.party_lights
+      - input_boolean.xmaslights
+      - input_boolean.xmas_override
+    data: {}
+  mode: single
+- id: '1765522927376'
+  alias: 'Lights: master switch Xmaslights'
+  description: any change to device will reflect on boolean state and vv for helper
+    and switch
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.xmaslights
+    - switch.wifi_stopcontact_8
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''switch.wifi_stopcontact_8'')
+          }}'
+      sequence:
+      - action: "{% if trigger.to_state.state == 'on' %}\n  switch.turn_on\n{% else
+          %}\n  switch.turn_off\n{% endif %}\n"
+        target:
+          entity_id: switch.wifi_stopcontact_8
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.to_state.state != states(''input_boolean.xmaslights'')
+          }}'
+      sequence:
+      - action: "{% if trigger.to_state.state == 'on' %}\n  input_boolean.turn_on\n{%
+          else %}\n  input_boolean.turn_off\n{% endif %}\n"
+        target:
+          entity_id: input_boolean.xmaslights
+  mode: single
+- id: '1773175708253'
+  alias: 'Inverter: Wifi stopcontact 5 aan/uit'
+  description: voor PV fan
+  triggers:
+  - trigger: time
+    at:
+      entity_id: sensor.sun_next_rising
+      offset: 02:00:00
+    id: on_time
+  - trigger: time
+    at:
+      entity_id: sensor.sun_next_setting
+      offset: -02:00:00
+    id: off_time
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: on_time
+      sequence:
+      - type: turn_on
+        device_id: b05ad76393852279c49f583b08483cba
+        entity_id: 2154e7f81822fb7d585326ec6452c665
+        domain: switch
+    - conditions:
+      - condition: trigger
+        id: off_time
+      sequence:
+      - type: turn_off
+        device_id: b05ad76393852279c49f583b08483cba
+        entity_id: 2154e7f81822fb7d585326ec6452c665
+        domain: switch
+  mode: single
+- id: '1777585597849'
+  alias: 'Alert: Kwh price < 0'
+  description: ''
+  triggers:
+  - type: value
+    device_id: abb10be15d6a2b7804c1df25013a8a0c
+    entity_id: e86d67dfe4bb5a8a21f98ef1f4b50e83
+    domain: sensor
+    trigger: device
+    below: 0
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 20
+  conditions: []
+  actions:
+  - action: mqtt.publish
+    metadata: {}
+    data:
+      evaluate_payload: false
+      qos: 0
+      retain: false
+      topic: /openhab/notification/alert
+      payload: Energie prijs < 0
+  mode: single
+- id: set_fan_level
+  alias: Set Fan level
+  trigger:
+  - platform: state
+    entity_id: input_select.fan_level
+  action:
+  - service: mqtt.publish
+    data:
+      topic: home/rfm_gw/sb/node05/dev32
+      payload: "{% set map = {\n  'Laag': '1',\n  'Normaal': '2',\n  'Hoog': '3',\n
+        \ 'Douche': '4'\n} %} {{ map[trigger.to_state.state] }}\n"
+- alias: 'Logger: set default level from input_select'
+  id: logger_set_default_level_from_input_select
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: input_select.log_level
+  actions:
+  - service: logger.set_default_level
+    data:
+      level: '{{ states(''input_select.log_level'') }}'
+- alias: Nachtmodus uit om 06:00
+  id: nachtmodus_uit_0600
+  mode: single
+  trigger:
+  - platform: time
+    at: 06:00:00
+  condition:
+  - condition: state
+    entity_id: input_boolean.night_mode
+    state: 'on'
+  action:
+  - service: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.night_mode
+- alias: 'Night mode: lamps off, quooker off, fan low'
+  id: night_mode_lamps_quooker_fan
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: input_boolean.night_mode
+    to: 'on'
+  condition: []
+  action:
+  - service: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.living
+      - input_boolean.dresser
+      - input_boolean.veranda
+      - input_boolean.party_lights
+      - input_boolean.xmaslights
+  - service: switch.turn_off
+    target:
+      entity_id: switch.wifi_stopcontact_4_none
+  - service: input_select.select_option
+    target:
+      entity_id: input_select.fan_level
+    data:
+      option: Laag
+- id: '1778074207873'
+  alias: 'Inverter: GoodWe exportlimiet op prijs (met hysterese)'
+  description: Zet exportlimiet 0W bij sterk negatieve prijs, 10000W bij positieve
+    prijs, maar alleen als wijziging nodig is.
+  triggers:
+  - trigger: state
+    entity_id: sensor.current_electricity_price_all_in
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.current_electricity_price_all_in
+        below: -0.005
+      - condition: template
+        value_template: '{{ states(''number.goodwe_net_exportlimiet'') | float(0)
+          != 0 }}'
+      sequence:
+      - action: number.set_value
+        target:
+          entity_id: number.goodwe_net_exportlimiet
+        data:
+          value: 0
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.current_electricity_price_all_in
+        above: 0.005
+      - condition: template
+        value_template: '{{ states(''number.goodwe_net_exportlimiet'') | float(0)
+          != 10000 }}'
+      sequence:
+      - action: number.set_value
+        target:
+          entity_id: number.goodwe_net_exportlimiet
+        data:
+          value: 10000
+    default: []
+  mode: single
+- id: '1778091775421'
+  alias: 'Alert: GoodWe exportlimiet staat nog op 0 om 06:00'
+  description: ''
+  triggers:
+  - at: 06:00:00
+    trigger: time
+  conditions:
+  - condition: state
+    entity_id: number.goodwe_net_exportlimiet
+    state: '0'
+  actions:
+  - data:
+      topic: /openhab/notification/alert
+      payload: GoodWe exportlimiet staat om 06:00 nog op 0 W
+    action: mqtt.publish
+  mode: single
+- alias: Marstek - laad bij teruglevering
+  id: marstek_charge_on_export
+  mode: restart
+  trigger:
+  - platform: state
+    entity_id:
+    - sensor.net_power_filtered_for_control
+    - binary_sensor.pv_surplus
+    - sensor.wanted_charge_power
+  condition:
+  - condition: state
+    entity_id: input_boolean.marstek_auto_control_enabled
+    state: 'on'
+  - condition: state
+    entity_id: binary_sensor.pv_surplus
+    state: 'on'
+  - condition: numeric_state
+    entity_id: sensor.wanted_charge_power
+    above: 100
+  action:
+  - variables:
+      charge_power: '{% set wanted = states(''sensor.wanted_charge_power'') | float(0)
+        %} {% set max_p = states(''input_number.marstek_max_charge_power'') | float(750)
+        %} {{ [wanted, max_p] | min | round(0) }}
+
+        '
+  - action: marstek_local_api.set_passive_mode
+    data:
+      device_id: a8ca36bf19731b83739094ba115031a1
+      power: '{{ 0 - charge_power }}'
+      duration: 300
+- alias: Marstek - stop laden als teruglevering wegvalt
+  id: marstek_stop_charge_when_export_ends
+  mode: single
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.net_power_filtered_for_control
+    above: -50
+    for:
+      minutes: 2
+  condition:
+  - condition: state
+    entity_id: input_boolean.marstek_auto_control_enabled
+    state: 'on'
+  action:
+  - action: marstek_local_api.set_passive_mode
+    data:
+      device_id: a8ca36bf19731b83739094ba115031a1
+      power: 0
+      duration: 300
+- alias: Marstek - laad bij negatieve stroomprijs
+  id: marstek_charge_on_negative_price
+  mode: restart
+  trigger:
+  - platform: state
+    entity_id:
+    - binary_sensor.negative_electricity_price
+    - sensor.electricity_price_eur_kwh
+  condition:
+  - condition: state
+    entity_id: input_boolean.marstek_auto_control_enabled
+    state: 'on'
+  - condition: state
+    entity_id: binary_sensor.negative_electricity_price
+    state: 'on'
+  action:
+  - variables:
+      charge_power: '{% set max_p = states(''input_number.marstek_max_charge_power'')
+        | float(750) %} {{ [max_p, 750] | min | round(0) }}
+
+        '
+  - action: marstek_local_api.set_passive_mode
+    data:
+      device_id: a8ca36bf19731b83739094ba115031a1
+      power: '{{ 0 - charge_power }}'
+      duration: 3600
+- alias: Marstek - stop prijsladen als negatieve prijs eindigt
+  id: marstek_stop_charge_when_negative_price_ends
+  mode: single
+  trigger:
+  - platform: state
+    entity_id: binary_sensor.negative_electricity_price
+    to: 'off'
+    for:
+      minutes: 1
+  condition:
+  - condition: state
+    entity_id: input_boolean.marstek_auto_control_enabled
+    state: 'on'
+  - condition: state
+    entity_id: binary_sensor.pv_surplus
+    state: 'off'
+  action:
+  - action: marstek_local_api.set_passive_mode
+    data:
+      device_id: a8ca36bf19731b83739094ba115031a1
+      power: 0
+      duration: 300
+- id: '1782426069295'
+  alias: Summer fan
+  description: ''
+  triggers:
+  - trigger: time
+    at: 05:00:00
+  conditions: []
+  actions:
+  - action: input_select.select_option
+    metadata: {}
+    target:
+      entity_id: input_select.fan_level
+    data:
+      option: Hoog
+  mode: single
+- alias: Refresh electricity prices
+  id: refresh_electricity_prices
+  trigger:
+  - platform: time
+    at: 00:00:10
+  - platform: time
+    at: '15:00:00'
+  - platform: time
+    at: '16:00:00'
+  - platform: homeassistant
+    event: start
+  action:
+  - service: homeassistant.update_entity
+    target:
+      entity_id:
+      - sensor.enever_electricity_prices_today_2
+      - sensor.enever_electricity_prices_tomorrow_2

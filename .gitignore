@@ -1,0 +1,17 @@
+# Gevoelige bestanden
+.env
+secrets.yaml
+known_devices.yaml
+.storage/
+.cloud/
+*.db
+*.db-shm
+*.db-wal
+home-assistant.log
+home-assistant_v2.db*
+*.log
+deps/
+tts/
+custom_components/*/__pycache__/
+*.pyc
+.DS_Store

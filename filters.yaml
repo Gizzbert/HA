@@ -1,0 +1,55 @@
+#############################################################
+### filter to normalize DSMR readings and remove outliers ###
+#############################################################
+
+#sensor:
+#  - platform: filter
+#    name: "Filtered gas consumption"
+#    entity_id: sensor.gas_meter_gas_consumption
+#    filters:
+#      - filter: outlier
+#        window_size: 4
+#        radius: 40
+#  - platform: filter
+#    name: "Filtered energy consumption low"
+#    entity_id: sensor.electricity_meter_energy_consumption_tarif_1
+#    filters:
+#      - filter: outlier
+#        window_size: 4
+#        radius: 40
+#  - platform: filter
+#    name: "Filtered energy consumption normal"
+#    entity_id: sensor.electricity_meter_energy_consumption_tarif_2
+#    filters:
+#      - filter: outlier
+#        window_size: 4
+#        radius: 40
+#  - platform: filter
+#    name: "Filtered energy production low"
+#    entity_id: sensor.electricity_meter_energy_production_tarif_1
+#    filters:
+#      - filter: outlier
+#        window_size: 4
+#        radius: 40
+#  - platform: filter
+#    name: "Filtered energy production normal"
+#    entity_id: sensor.electricity_meter_energy_production_tarif_2
+#    filters:
+#      - filter: outlier
+#        window_size: 4
+#        radius: 40
+#  - platform: filter
+#    name: "Filtered power consumption"
+#    entity_id: sensor.electricity_meter_power_consumption
+#    filters:
+#      - filter: outlier
+#        window_size: 4
+#        radius: 40
+#  - platform: filter
+#    name: "Filtered power production"
+#    entity_id: sensor.electricity_meter_power_production
+#    filters:
+#      - filter: outlier
+#        window_size: 4
+#        radius: 40
+

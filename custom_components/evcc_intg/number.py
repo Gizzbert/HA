@@ -1,0 +1,174 @@
+import logging
+from dataclasses import replace
+
+from homeassistant.components.number import NumberEntity
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfTemperature, Platform
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+from custom_components.evcc_intg.pyevcc_ha.keys import Tag
+from . import EvccDataUpdateCoordinator, EvccBaseEntity
+from .const import DOMAIN, NUMBER_ENTITIES, ExtNumberEntityDescription, NUMBER_ENTITIES_PER_LOADPOINT
+
+_LOGGER = logging.getLogger(__name__)
+
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, add_entity_cb: AddEntitiesCallback):
+    _LOGGER.debug("NUMBER async_setup_entry")
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+    entities = []
+    for description in NUMBER_ENTITIES:
+        if description.tag == Tag.BATTERYGRIDCHARGELIMIT:
+            # evcc checks the battery grid charge limit against the planner tariff (same as the
+            # loadpoint smartCostLimit) - so when the planner is a co2 tariff, the limit is in g/kWh
+            if coordinator._cost_type == "co2":
+                description = replace(
+                    description,
+                    translation_key = f"{description.tag.json_key}_co2",
+                    icon = "mdi:molecule-co2",
+                    native_max_value=500,
+                    native_min_value=0,
+                    native_step=5,
+                    native_unit_of_measurement="g/kWh"
+                )
+
+            # for SEK, NOK, DKK we need to patch the maxvalue (1€ ~ 10 Krone)
+            elif coordinator._currency != "€":
+                description = replace(
+                    description,
+                    native_max_value = description.native_max_value * 10,
+                    native_min_value = description.native_min_value * 10
+                )
+
+        elif description.tag == Tag.BATTERYGRIDDISCHARGELIMIT:
+            # evcc checks the grid discharge limit against the feed-in tariff - so it's always a price
+            if coordinator._currency != "€":
+                description = replace(
+                    description,
+                    native_max_value = description.native_max_value * 10,
+                    native_min_value = description.native_min_value * 10
+                )
+
+        entity = EvccNumber(coordinator, description)
+        entities.append(entity)
+
+    multi_loadpoint_config = len(coordinator._loadpoint) > 1
+    for a_lp_key in coordinator._loadpoint:
+        load_point_config = coordinator._loadpoint[a_lp_key]
+        if load_point_config["is_disabled"]:
+            _LOGGER.debug(f"NUMBER skipping loadpoint {a_lp_key} since it is disabled")
+            continue
+        lp_api_index = int(a_lp_key)
+        lp_id_addon = load_point_config["id"]
+        lp_name_addon = load_point_config["name"]
+        lp_has_phase_auto_option = load_point_config["has_phase_auto_option"]
+        lp_is_heating = load_point_config["is_heating"]
+        lp_is_integrated = load_point_config["is_integrated"]
+        lp_is_switch_device = load_point_config["is_switch_device"]
+        lp_is_always_charge_present = load_point_config["is_always_charge_present"]
+        lp_is_single_phase_only = load_point_config["only_single_phase"]
+
+        for a_stub in NUMBER_ENTITIES_PER_LOADPOINT:
+            # get rid of all stub's that are not supported by integrated devices
+            if lp_is_integrated and not a_stub.integrated_supported:
+                continue
+
+            force_celsius = lp_is_heating and a_stub.tag == Tag.LIMITSOC
+            the_key = a_stub.tag.entity_key if a_stub.tag.entity_key is not None else a_stub.tag.json_key
+            description = ExtNumberEntityDescription(
+                tag=a_stub.tag,
+                lp_idx=lp_api_index,
+                key=f"{lp_id_addon}_{the_key}",
+                translation_key=the_key,
+                name_addon=lp_name_addon if multi_loadpoint_config else None,
+                icon="mdi:thermometer" if force_celsius else a_stub.icon,
+                device_class=SensorDeviceClass.TEMPERATURE if force_celsius else a_stub.device_class,
+                unit_of_measurement=UnitOfTemperature.CELSIUS if force_celsius else a_stub.unit_of_measurement,
+                entity_category=a_stub.entity_category,
+                entity_registry_enabled_default=a_stub.entity_registry_enabled_default,
+                is_lp_integrated_device=lp_is_integrated,
+
+                # the entity type specific values...
+                max_value=a_stub.max_value,
+                min_value=a_stub.min_value,
+                mode=a_stub.mode,
+                native_max_value=a_stub.native_max_value,
+                native_min_value=a_stub.native_min_value,
+                native_step=1 if force_celsius else a_stub.native_step,
+                native_unit_of_measurement=UnitOfTemperature.CELSIUS if force_celsius else a_stub.native_unit_of_measurement,
+                step=a_stub.step,
+            )
+
+            if a_stub.tag in [Tag.SMARTCOSTLIMIT, Tag.SMARTFEEDINPRIORITYLIMIT]:
+                # the smartFeedInPriorityLimit is checked against the feed-in tariff (and that is
+                # always a price) - so only the smartCostLimit can be a co2 limit
+                if a_stub.tag == Tag.SMARTCOSTLIMIT and coordinator._cost_type == "co2":
+                    description = replace(
+                        description,
+                        translation_key = f"{a_stub.tag.json_key}_co2",
+                        icon = "mdi:molecule-co2",
+                        native_max_value=500,
+                        native_min_value=0,
+                        native_step=5,
+                        native_unit_of_measurement="g/kWh"
+                    )
+
+                # for SEK, NOK, DKK we need to patch the maxvalue (1€ ~ 10 Krone)
+                elif coordinator._currency != "€":
+                    description = replace(
+                        description,
+                        native_max_value = a_stub.native_max_value * 10,
+                        native_min_value = a_stub.native_min_value * 10
+                    )
+
+            entity = EvccNumber(coordinator, description)
+            entities.append(entity)
+
+    add_entity_cb(entities)
+
+
+class EvccNumber(EvccBaseEntity, NumberEntity):
+    def __init__(self, coordinator: EvccDataUpdateCoordinator, description: ExtNumberEntityDescription):
+        super().__init__(entity_type=Platform.NUMBER, coordinator=coordinator, description=description)
+
+    @property
+    def native_value(self):
+        try:
+            value = self.coordinator.read_tag(self.tag, self.lp_idx)
+            if value is None or value == "":
+                return "unknown"
+            else:
+                if self.tag in [Tag.SMARTCOSTLIMIT, Tag.SMARTFEEDINPRIORITYLIMIT, Tag.BATTERYGRIDCHARGELIMIT, Tag.BATTERYGRIDDISCHARGELIMIT]:
+                    value = round(float(value), 3)
+                # fucking HA translation keys!
+                elif self.tag == Tag.SOLARSHARE:
+                    value = int(value * 100)
+                else:
+                    value = int(value)
+
+            # thanks for nothing evcc - SOC-Limit can be 0, even if the effectiveLimit is set > 0 - I assume you want
+            # to tell that the limit is not set...
+            if self.tag == Tag.LIMITSOC and value == 0:
+                value = self.coordinator.read_tag(Tag.EFFECTIVELIMITSOC, self.lp_idx)
+
+        except KeyError:
+            return "unknown"
+
+        except TypeError:
+            return None
+
+        return value
+
+    async def async_set_native_value(self, value) -> None:
+        try:
+            if self.tag in [Tag.SMARTCOSTLIMIT, Tag.SMARTFEEDINPRIORITYLIMIT, Tag.BATTERYGRIDCHARGELIMIT, Tag.BATTERYGRIDDISCHARGELIMIT]:
+                await self.coordinator.async_write_tag(self.tag, round(float(value), 3), self)
+            elif self.tag == Tag.SOLARSHARE:
+                # fucking HA translation keys!
+                await self.coordinator.async_write_tag(self.tag, int(value)/100 if int(value) > 0 else 0, self)
+            else:
+                await self.coordinator.async_write_tag(self.tag, int(value), self)
+
+        except ValueError:
+            return "unavailable"

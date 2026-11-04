@@ -1,0 +1,11 @@
+living_lights_group:
+  name: Living Lights
+  entities:
+    - input_boolean.dresser
+    - input_boolean.living
+
+veranda_lights_group:
+  name: Veranda Lights
+  entities:
+    - input_boolean.veranda
+    - input_boolean.party_lights

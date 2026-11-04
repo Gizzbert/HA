@@ -1,0 +1,10 @@
+{
+  "domain": "marstek_modbus",
+  "name": "Marstek Venus Modbus",
+  "version": "2026.10.1",
+  "config_flow": true,
+  "documentation": "https://github.com/viperrnmc/marstek_venus_modbus",
+  "dependencies": ["modbus"],
+  "codeowners": ["@ViperRNMC"],
+  "iot_class": "local_polling"
+}

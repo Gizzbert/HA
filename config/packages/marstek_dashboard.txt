@@ -1,0 +1,376 @@
+# =============================================================================
+# Marstek Energy Dashboard - view config
+# Aangepast voor: 1x Marstek Venus (beta) via ViperRNMC Modbus TCP-integratie,
+# de officiele "DSMR Smart Meter" core-integratie, en 2 zon-omvormers
+# (GoodWe + Sunny Boy).
+#
+# Hoe plakken (Raw configuration editor, zoals in het originele artikel):
+#   1. Zet je gebruikersaccount op "Geavanceerde modus" (Instellingen > Personen
+#      > jouw account).
+#   2. Open het dashboard waar je dit aan toe wilt voegen.
+#   3. Klik rechtsboven op de 3 puntjes > Dashboard bewerken > 3 puntjes > Raw
+#      configuration editor.
+#   4. Ga naar het einde van het bestand, in de "views:" lijst, op een nieuwe
+#      regel (met dezelfde inspringing als de andere "- type: ..." views).
+#   5. Plak de VOLLEDIGE inhoud hieronder (dit is 1 view-item).
+#   6. Klik op SAVE, sluit de editor.
+#
+# Benodigde custom cards (via HACS): apexcharts-card, Solar Storage Card
+# (custom:b2500d-card). Je gaf aan dat deze en het Energiedashboard al
+# geinstalleerd/geconfigureerd zijn.
+#
+# UITBREIDEN NAAR BATTERIJ 2: zodra je een 2e Marstek Venus toevoegt, kopieer
+# het "Marstek Venus Beta" kaartblok in de "Marstek Detail" sectie en pas de
+# entity_id's aan naar de 2e batterij. Voeg ook de 2e batterij toe aan de
+# lijsten in marstek_calculations.yaml.
+# =============================================================================
+
+  - type: sections
+    max_columns: 4
+    icon: mdi:battery-charging
+    path: marstek
+    title: Marstek
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Marstek Total
+          - output: true
+            battery: true
+            production: true
+            settings: true
+            solar: true
+            icon: true
+            compact: false
+            max_input_power: 2500
+            max_input_power2: 600
+            max_input_power3: 600
+            max_input_power4: 600
+            entities:
+              battery_percentage: sensor.marstek_average_battery_soc
+              battery_capacity: sensor.marstek_total_stored_energy
+              solar_power: sensor.total_solar_power
+              p1_power: sensor.electricity_meter_power_consumption
+              p2_power: sensor.electricity_meter_power_production
+              output_power: sensor.marstek_total_ac_power
+              production_today: sensor.marstek_total_discharging_energy_today
+            type: custom:b2500d-card
+            name: Marstek Total
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Marstek Detail
+          - output: true
+            battery: true
+            production: true
+            settings: true
+            solar: false
+            icon: true
+            compact: true
+            max_input_power: 2500
+            max_input_power2: 600
+            max_input_power3: 600
+            max_input_power4: 600
+            entities:
+              battery_percentage: sensor.marstek_venus_beta_modbus_batterij_soc
+              battery_capacity: sensor.marstek_venus_beta_modbus_opgeslagen_energie
+              solar_power: sensor.total_solar_power
+              p1_power: sensor.electricity_meter_power_production
+              p2_power: sensor.electricity_meter_power_consumption
+              output_power: sensor.marstek_venus_beta_modbus_ac_vermogen
+              production_today: sensor.marstek_venus_beta_modbus_dagelijkse_ontlaadenergie
+            type: custom:b2500d-card
+            name: Marstek Venus Beta
+          # Zodra batterij 2 is toegevoegd: kopieer dit blok en pas de
+          # entity_id's + naam aan, bijvoorbeeld:
+          # - output: true
+          #   battery: true
+          #   production: true
+          #   settings: true
+          #   solar: false
+          #   icon: true
+          #   compact: true
+          #   max_input_power: 2500
+          #   max_input_power2: 600
+          #   max_input_power3: 600
+          #   max_input_power4: 600
+          #   entities:
+          #     battery_percentage: sensor.<naam_batterij_2>_batterij_soc
+          #     battery_capacity: sensor.<naam_batterij_2>_opgeslagen_energie
+          #     solar_power: sensor.total_solar_power
+          #     p1_power: sensor.electricity_meter_power_production
+          #     p2_power: sensor.electricity_meter_power_consumption
+          #     output_power: sensor.<naam_batterij_2>_ac_vermogen
+          #     production_today: sensor.<naam_batterij_2>_dagelijkse_ontlaadenergie
+          #   type: custom:b2500d-card
+          #   name: Marstek <naam batterij 2>
+          - type: custom:apexcharts-card
+            graph_span: 1d
+            header:
+              show: true
+              title: Marstek total battery state
+            apex_config:
+              chart:
+                height: 200
+              fill:
+                opacity: 5
+              yaxis:
+                - min: 0
+                  max: 100
+                  decimalsInFloat: 0
+              annotations:
+                yaxis:
+                  - 'y': 0
+                    y2: 20
+                    fillColor: '#FF0000'
+                    opacity: 0.1
+                  - 'y': 20
+                    y2: 50
+                    fillColor: '#FFA500'
+                    opacity: 0.1
+                  - 'y': 50
+                    y2: 100
+                    fillColor: '#00FF00'
+                    opacity: 0.1
+            series:
+              - entity: sensor.marstek_average_battery_soc
+                name: Battery SoC
+                type: line
+                stroke_width: 3
+                color: '#FFFFFF'
+                group_by:
+                  func: last
+                  duration: 30m
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Marstek State Of Charge
+          - type: custom:apexcharts-card
+            graph_span: 1d
+            header:
+              show: true
+              title: Marstek Venus Beta
+            apex_config:
+              chart:
+                height: 110
+              fill:
+                opacity: 5
+              yaxis:
+                - min: 0
+                  max: 100
+                  decimalsInFloat: 0
+              annotations:
+                yaxis:
+                  - 'y': 0
+                    y2: 20
+                    fillColor: '#FF0000'
+                    opacity: 0.1
+                  - 'y': 20
+                    y2: 50
+                    fillColor: '#FFA500'
+                    opacity: 0.1
+                  - 'y': 50
+                    y2: 100
+                    fillColor: '#00FF00'
+                    opacity: 0.1
+            series:
+              - entity: sensor.marstek_venus_beta_modbus_batterij_soc
+                name: Battery SoC
+                type: line
+                stroke_width: 3
+                color: '#FFFFFF'
+                group_by:
+                  func: last
+                  duration: 30m
+          # Zodra batterij 2 is toegevoegd: kopieer bovenstaand
+          # custom:apexcharts-card blok en verwijs naar
+          # sensor.<naam_batterij_2>_batterij_soc
+          - type: energy-usage-graph
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Current Usage and Return
+          - type: vertical-stack
+            cards:
+              - type: horizontal-stack
+                cards:
+                  - type: gauge
+                    entity: sensor.net_energy_consumption
+                    severity:
+                      green: -4000
+                      yellow: 0
+                      red: 4000
+                    needle: true
+                    min: -4000
+                    max: 4000
+                    name: Smart Meter
+                  - type: gauge
+                    entity: sensor.own_usage_power
+                    unit: W
+                    severity:
+                      green: 0
+                      yellow: 1
+                      red: 0
+                    needle: true
+                    min: 0
+                    max: 4000
+                    name: Own Usage
+          - type: vertical-stack
+            cards:
+              - type: horizontal-stack
+                cards:
+                  - type: gauge
+                    entity: sensor.total_solar_power
+                    severity:
+                      green: 1
+                      yellow: 0
+                      red: 0
+                    needle: true
+                    min: 0
+                    max: 6000
+                    name: Solar production
+                  - type: gauge
+                    entity: sensor.marstek_total_ac_power
+                    severity:
+                      green: -3000
+                      yellow: 0
+                      red: 3000
+                    needle: true
+                    min: -3000
+                    max: 3000
+                    name: Marstek Power Usage
+          - type: energy-distribution
+            link_dashboard: true
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            icon: ''
+            heading: Real-time energy usage
+          - type: custom:apexcharts-card
+            graph_span: 1d
+            show:
+              last_updated: true
+            header:
+              standard_format: false
+              show: true
+              show_states: true
+              colorize_states: true
+            apex_config:
+              fill:
+                type: solid
+                opacity: 0.3
+              yaxis:
+                - id: first
+                  forceNiceScale: true
+                  decimalsInFloat: 3
+              annotations:
+                yaxis:
+                  - 'y': 0
+                    borderColor: '#FFFFFF'
+                    borderWidth: 2
+            series:
+              - entity: sensor.net_energy_positive
+                name: Verbruik
+                type: area
+                color: '#FFA500'
+                stroke_width: 2
+                group_by:
+                  func: last
+                  duration: 30m
+              - entity: sensor.net_energy_negative
+                name: Teruglevering
+                type: area
+                color: '#00FF00'
+                stroke_width: 2
+                group_by:
+                  func: last
+                  duration: 30m
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Power Sources
+          - type: power-sources-graph
+      # De "Usage per phase" sectie uit het origineel is weggelaten: je hebt
+      # (nog) geen L1/L2/L3 sensoren beschikbaar. Zodra je DSMR-integratie
+      # per-fase sensoren blootstelt (Instellingen > Entiteiten, filter
+      # "electricity_meter" op "phase" of "l1"/"l2"/"l3"), kan dit blok terug:
+      #
+      # - type: grid
+      #   cards:
+      #     - type: heading
+      #       heading: Usage per phase last 12 hours
+      #       heading_style: subtitle
+      #     - type: horizontal-stack
+      #       cards:
+      #         - type: custom:apexcharts-card
+      #           experimental:
+      #             color_threshold: true
+      #           graph_span: 12h
+      #           show:
+      #             last_updated: true
+      #           header:
+      #             standard_format: true
+      #             show: true
+      #             show_states: true
+      #             colorize_states: true
+      #           apex_config:
+      #             legend:
+      #               show: false
+      #           series:
+      #             - entity: sensor.<jouw_L1_delivered_sensor>
+      #               type: line
+      #               group_by:
+      #                 func: last
+      #                 duration: 10s
+      #               stroke_width: 1
+      #               unit: Watt
+      #               color: '#FFA500'
+      #             - entity: sensor.<jouw_L2_delivered_sensor>
+      #               type: line
+      #               group_by:
+      #                 func: last
+      #                 duration: 10s
+      #               stroke_width: 1
+      #               unit: Watt
+      #               color: '#00FF00'
+      #             - entity: sensor.<jouw_L3_delivered_sensor>
+      #               type: line
+      #               group_by:
+      #                 func: last
+      #                 duration: 10s
+      #               stroke_width: 1
+      #               unit: Watt
+      #               color: '#FFFF00'
+      #   column_span: 1
+      - type: grid
+        cards:
+          - type: heading
+            heading_style: subtitle
+            heading: Smart Meter Totals
+          - type: vertical-stack
+            cards:
+              - type: entities
+                entities:
+                  - entity: sensor.electricity_meter_energy_consumption_tarif_1
+                    icon: mdi:lightning-bolt
+                    secondary_info: none
+                  - entity: sensor.electricity_meter_energy_consumption_tarif_2
+                  - entity: sensor.electricity_meter_energy_production_tarif_1
+                  - entity: sensor.electricity_meter_energy_production_tarif_2
+                  # Gas en water zijn niet meegenomen (geen entity's
+                  # aangeleverd). Voeg desgewenst toe, bijvoorbeeld:
+                  # - entity: sensor.gas_meter_gas_consumption
+                  #   secondary_info: none
+                  #   icon: mdi:fire
+                  # - entity: sensor.<jouw_watermeter_sensor>
+                  #   icon: mdi:water
+                  #   name: Water usage
+    subview: false
+    cards: []
+    dense_section_placement: true
