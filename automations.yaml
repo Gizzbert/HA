@@ -1,0 +1,90 @@
+- id: tuinkamer_party_lights_bij_beweging
+  alias: 'Lichten: partyverlichting tuinkamer bij beweging'
+  description: >
+    Zet input_boolean.party_lights aan als binary_sensor.beweging_tuinkamer van
+    uit naar aan gaat, de zon onder is (sun.sun below_horizon) en de
+    partyverlichting uit staat. Zet ze meteen weer uit als die sensor van aan
+    naar uit gaat, maar alleen als input_boolean.party_lights_auto_tuinkamer
+    aan staat. Die vlag wordt gezet vóór het aanzetten en gaat uit bij een
+    echte uit-overgang die blijft, of bij een herstart.
+  mode: queued
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.beweging_tuinkamer
+    from: 'off'
+    to: 'on'
+    id: beweging_aan
+  - trigger: state
+    entity_id: binary_sensor.beweging_tuinkamer
+    from: 'on'
+    to: 'off'
+    id: beweging_uit
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: beweging_aan
+      - condition: state
+        entity_id: sun.sun
+        state: below_horizon
+      - condition: template
+        value_template: "{{ is_state('input_boolean.party_lights', 'off') }}"
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.party_lights_auto_tuinkamer
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.party_lights
+    - conditions:
+      - condition: trigger
+        id: beweging_uit
+      - condition: template
+        value_template: "{{ is_state('input_boolean.party_lights_auto_tuinkamer', 'on') }}"
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.party_lights
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.party_lights_auto_tuinkamer
+
+- id: tuinkamer_party_lights_vlag_wissen
+  alias: 'Lichten: tuinkamer partyverlichting vlag wissen'
+  description: >
+    Zet de eigendomsvlag uit als de partyverlichting zelf van aan naar uit gaat
+    en uit blijft, of bij een herstart. Korte bevestiging zodat een
+    master-switch echo (stopcontact 8 / sf501d) de vlag niet wist terwijl de
+    lampen meteen weer aan gaan. Dit raakt de uit-actie van de beweging niet.
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.party_lights
+    from: 'on'
+    to: 'off'
+    id: lichten_uit
+  - trigger: homeassistant
+    event: start
+    id: herstart
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: herstart
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.party_lights_auto_tuinkamer
+    - conditions:
+      - condition: trigger
+        id: lichten_uit
+      sequence:
+      - delay:
+          seconds: 3
+      - condition: template
+        value_template: "{{ is_state('input_boolean.party_lights', 'off') }}"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.party_lights_auto_tuinkamer
