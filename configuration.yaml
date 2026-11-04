@@ -75,6 +75,10 @@ sensor:
         precision: 2
 
 ### Cumulatieve energie (kWh) → vermogen (kW) via derivative, voor Net Power (W) ###
+# Filtered totals and EVCC charge/discharge templates live in
+# packages/energy_calculations.yaml. These derivative sensors have no unique_id,
+# so they stay here (moving them would orphan long-term statistics). The
+# integration sensors feed sensor.marstek_combined_total_grid_import.
   - platform: derivative
     source: sensor.electricity_total_energy_consumption_filtered
     name: Electricity Power Consumption Derived

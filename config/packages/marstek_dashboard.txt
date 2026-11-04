@@ -22,7 +22,7 @@
 # UITBREIDEN NAAR BATTERIJ 2: zodra je een 2e Marstek Venus toevoegt, kopieer
 # het "Marstek Venus Beta" kaartblok in de "Marstek Detail" sectie en pas de
 # entity_id's aan naar de 2e batterij. Voeg ook de 2e batterij toe aan de
-# lijsten in marstek_calculations.yaml.
+# lijsten in packages/energy_calculations.yaml.
 # =============================================================================
 
   - type: sections
