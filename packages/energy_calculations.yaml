@@ -19,12 +19,11 @@
 #   vs sensor.net_energy_consumption (English DSMR W)
 # - sensor.grid_import_energy_total / sensor.grid_export_energy_total
 #   vs the filtered English tarif sums (those reject a drop or a >1 kWh step)
-# - sensor.marstek_combined_total_grid_export and _export_clean are the same
-#   discharge total (EVCC `energy`). The clean sensor rejects a drop or a
-#   step above 0.25 kWh.
-# - sensor.marstek_combined_total_grid_import and _import_clean are the same
-#   charge total (integral of charge power). EVCC `returnEnergy` is the
-#   charge slot, but the Marstek template does not fill it.
+# - sensor.marstek_combined_total_grid_export_clean is EVCC discharge
+#   (`energy`, Modbus 33002). sensor.marstek_combined_total_grid_import_clean
+#   is EVCC charge (`returnEnergy`, Modbus 33000). Both reject one decrease
+#   or a step above 0.25 kWh, then re-baseline with an offset after 30 min
+#   so the published total does not jump.
 # - sensor.marstek_combined_grid_power (EVCC MQTT, sign -1)
 #   vs sensor.marstek_total_ac_power (Venus Modbus)
 # - sensor.eigen_verbruik (solar + net) vs sensor.own_usage_power (solar + grid import + battery)
@@ -156,26 +155,25 @@ template:
           {{ (alpha + beta) | round(3) }}
 
   # Guarded battery counters for the Energy dashboard.
-  # Out of the battery (discharge) = EVCC `energy` (Marstek register 33002).
-  # The site topic evcc/site/battery/energy is that sum; the per-device
-  # topics are evcc/site/battery/devices/1/energy and /2/energy, already
-  # summed by sensor.marstek_combined_total_grid_export. Use the site
-  # sensor when it has a real total, otherwise that device sum.
-  # Into the battery (charge) would be EVCC `returnEnergy`. The stock
-  # marstek-venus-e template never sets returnenergy, so
-  # evcc/site/battery/returnEnergy is published as 0 and is not used here
-  # (a later non-zero lifetime total would be rejected as a jump).
-  # Charge follows the Riemann sum of charge power
-  # (sensor.marstek_combined_total_grid_import).
-  # A stored 0 is treated as "no baseline": the published 0 from the empty
-  # charge topic would otherwise make the jump guard reject the real total
-  # forever. After that, a decrease or a step above 0.25 kWh is still held.
+  # Discharge (out) = EVCC energy, Modbus 33002. Charge (in) = EVCC
+  # returnenergy, Modbus 33000, on the custom meters (not the stock
+  # marstek-venus-e template). Prefer the site sum when it is above 0;
+  # otherwise the sum of devices/1 and devices/2. The Riemann integral
+  # sensor.marstek_combined_total_grid_import is only a charge fallback
+  # when returnEnergy is 0 or unavailable.
+  # A single decrease or a step above 0.25 kWh is held. If that new
+  # source then moves by at most 0.25 kWh per reading for 30 minutes,
+  # an offset is stored so the published total continues from the old
+  # baseline (no long-term-statistics jump). A stored 0 is still treated
+  # as "no baseline" and accepts the first real total.
   - triggers:
       - trigger: state
         entity_id:
           - sensor.evcc_marstek_combined_energy
           - sensor.marstek_combined_total_grid_export
         to: null
+      - trigger: time_pattern
+        minutes: "/5"
       - trigger: homeassistant
         event: start
     sensor:
@@ -188,61 +186,199 @@ template:
           {{ is_number(states('sensor.evcc_marstek_combined_energy'))
              or is_number(states('sensor.marstek_combined_total_grid_export'))
              or is_number(this.state) }}
-        state: >
+        state: |
+          {% set prev_re = this.attributes.get('rebaselined_at', '') %}
+          {% set g = namespace(
+            candidate=none,
+            source='',
+            state=none,
+            status='source_unavailable',
+            offset=this.attributes.get('offset_kwh', 0) | float(0),
+            pending_since='',
+            pending_candidate='',
+            pending_reason='',
+            rebaselined_at=prev_re if prev_re not in [none, 'none', 'None'] else '',
+            restart=true,
+            delta=0,
+            src_step=0,
+            age=0,
+            raw=''
+          ) %}
+
           {% set site = states('sensor.evcc_marstek_combined_energy') %}
           {% set devices = states('sensor.marstek_combined_total_grid_export') %}
-          {% set ns = namespace(candidate=none) %}
           {% if is_number(site) and (site | float) > 0 %}
-            {% set ns.candidate = site | float | round(3) %}
+            {% set g.candidate = (site | float) | round(3) %}
+            {% set g.source = 'energy_site' %}
           {% elif is_number(devices) %}
-            {% set ns.candidate = devices | float | round(3) %}
+            {% set g.candidate = (devices | float) | round(3) %}
+            {% set g.source = 'energy_devices' %}
           {% endif %}
-          {% set candidate = ns.candidate %}
-          {% set previous = this.state %}
-          {% if candidate is none %}
-            {{ previous if is_number(previous) else none }}
-          {% elif not is_number(previous) or (previous | float) == 0 %}
-            {{ candidate }}
+
+          {% if g.candidate is not none %}
+            {% set g.raw = g.candidate %}
+          {% endif %}
+          {% if g.candidate is none %}
+            {% if is_number(this.state) %}
+              {% set g.state = this.state | float %}
+            {% endif %}
+            {% set g.status = 'source_unavailable' %}
+          {% elif not is_number(this.state) or (this.state | float) == 0 %}
+            {% set g.state = g.candidate %}
+            {% set g.status = 'initializing' %}
+            {% set g.offset = 0 %}
           {% else %}
-            {% set delta = candidate - (previous | float) %}
-            {{ candidate if 0 <= delta <= 0.25 else previous }}
+            {% set g.delta = (((g.candidate - g.offset) | round(3)) - (this.state | float)) | round(5) %}
+            {% if g.delta >= 0 and g.delta <= 0.25 %}
+              {% set g.state = (g.candidate - g.offset) | round(3) %}
+              {% set g.status = 'ok' %}
+            {% else %}
+              {% set g.pending_reason = 'rejected_decrease' if g.delta < 0 else 'rejected_jump' %}
+              {% set g.restart = true %}
+              {% if this.attributes.get('pending_since', '') and is_number(this.attributes.get('pending_candidate', '')) %}
+                {% set g.src_step = (g.candidate - (this.attributes.get('pending_candidate') | float)) | round(5) %}
+                {% if g.src_step >= -0.001 and g.src_step <= 0.25 %}
+                  {% set g.restart = false %}
+                {% endif %}
+              {% endif %}
+              {% if g.restart %}
+                {% set g.state = this.state | float %}
+                {% set g.status = 'pending_rebaseline' %}
+                {% set g.pending_since = now().isoformat() %}
+                {% set g.pending_candidate = g.candidate %}
+              {% else %}
+                {% set g.age = as_timestamp(now()) - as_timestamp(this.attributes.get('pending_since')) %}
+                {% if g.age >= 1800 %}
+                  {% set g.state = (this.state | float) | round(3) %}
+                  {% set g.offset = (g.candidate - (this.state | float)) | round(6) %}
+                  {% set g.status = 'rebaselined' %}
+                  {% set g.pending_since = '' %}
+                  {% set g.pending_candidate = '' %}
+                  {% set g.pending_reason = '' %}
+                  {% set g.rebaselined_at = now().isoformat() %}
+                {% else %}
+                  {% set g.state = this.state | float %}
+                  {% set g.status = 'pending_rebaseline' %}
+                  {% set g.pending_since = this.attributes.get('pending_since') %}
+                  {% set g.pending_candidate = g.candidate %}
+                {% endif %}
+              {% endif %}
+            {% endif %}
           {% endif %}
+          {{ g.state if g.state is not none else none }}
         attributes:
-          guard_status: >
+          guard_trace: |
+            {% set prev_re = this.attributes.get('rebaselined_at', '') %}
+            {% set g = namespace(
+              candidate=none,
+              source='',
+              state=none,
+              status='source_unavailable',
+              offset=this.attributes.get('offset_kwh', 0) | float(0),
+              pending_since='',
+              pending_candidate='',
+              pending_reason='',
+              rebaselined_at=prev_re if prev_re not in [none, 'none', 'None'] else '',
+              restart=true,
+              delta=0,
+              src_step=0,
+              age=0,
+              raw=''
+            ) %}
+
             {% set site = states('sensor.evcc_marstek_combined_energy') %}
             {% set devices = states('sensor.marstek_combined_total_grid_export') %}
-            {% set ns = namespace(candidate=none) %}
             {% if is_number(site) and (site | float) > 0 %}
-              {% set ns.candidate = site | float | round(3) %}
+              {% set g.candidate = (site | float) | round(3) %}
+              {% set g.source = 'energy_site' %}
             {% elif is_number(devices) %}
-              {% set ns.candidate = devices | float | round(3) %}
+              {% set g.candidate = (devices | float) | round(3) %}
+              {% set g.source = 'energy_devices' %}
             {% endif %}
-            {% set candidate = ns.candidate %}
-            {% if candidate is none %}
-              source_unavailable
+
+            {% if g.candidate is not none %}
+              {% set g.raw = g.candidate %}
+            {% endif %}
+            {% if g.candidate is none %}
+              {% if is_number(this.state) %}
+                {% set g.state = this.state | float %}
+              {% endif %}
+              {% set g.status = 'source_unavailable' %}
             {% elif not is_number(this.state) or (this.state | float) == 0 %}
-              initializing
+              {% set g.state = g.candidate %}
+              {% set g.status = 'initializing' %}
+              {% set g.offset = 0 %}
             {% else %}
-              {% set delta = candidate - (this.state | float) %}
-              {% if delta < 0 %}rejected_decrease{% elif delta > 0.25 %}rejected_jump{% else %}ok{% endif %}
+              {% set g.delta = (((g.candidate - g.offset) | round(3)) - (this.state | float)) | round(5) %}
+              {% if g.delta >= 0 and g.delta <= 0.25 %}
+                {% set g.state = (g.candidate - g.offset) | round(3) %}
+                {% set g.status = 'ok' %}
+              {% else %}
+                {% set g.pending_reason = 'rejected_decrease' if g.delta < 0 else 'rejected_jump' %}
+                {% set g.restart = true %}
+                {% if this.attributes.get('pending_since', '') and is_number(this.attributes.get('pending_candidate', '')) %}
+                  {% set g.src_step = (g.candidate - (this.attributes.get('pending_candidate') | float)) | round(5) %}
+                  {% if g.src_step >= -0.001 and g.src_step <= 0.25 %}
+                    {% set g.restart = false %}
+                  {% endif %}
+                {% endif %}
+                {% if g.restart %}
+                  {% set g.state = this.state | float %}
+                  {% set g.status = 'pending_rebaseline' %}
+                  {% set g.pending_since = now().isoformat() %}
+                  {% set g.pending_candidate = g.candidate %}
+                {% else %}
+                  {% set g.age = as_timestamp(now()) - as_timestamp(this.attributes.get('pending_since')) %}
+                  {% if g.age >= 1800 %}
+                    {% set g.state = (this.state | float) | round(3) %}
+                    {% set g.offset = (g.candidate - (this.state | float)) | round(6) %}
+                    {% set g.status = 'rebaselined' %}
+                    {% set g.pending_since = '' %}
+                    {% set g.pending_candidate = '' %}
+                    {% set g.pending_reason = '' %}
+                    {% set g.rebaselined_at = now().isoformat() %}
+                  {% else %}
+                    {% set g.state = this.state | float %}
+                    {% set g.status = 'pending_rebaseline' %}
+                    {% set g.pending_since = this.attributes.get('pending_since') %}
+                    {% set g.pending_candidate = g.candidate %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
             {% endif %}
+            {{ g.status }}|{{ g.offset }}|{{ g.pending_since }}|{{ g.pending_candidate }}|{{ g.pending_reason }}|{{ g.rebaselined_at }}|{{ g.raw }}|{{ g.source }}|{{ g.state if g.state is not none else '' }}
+          guard_status: "{{ (guard_trace | trim).split('|')[0] }}"
+          offset_kwh: "{{ ((guard_trace | trim).split('|')[1]) | float(0) }}"
+          pending_since: >
+            {% set v = (guard_trace | trim).split('|')[2] %}
+            {{ v if v else none }}
+          pending_candidate: >
+            {% set v = (guard_trace | trim).split('|')[3] %}
+            {{ (v | float(none)) if v else none }}
+          pending_reason: >
+            {% set v = (guard_trace | trim).split('|')[4] %}
+            {{ v if v else none }}
+          rebaselined_at: >
+            {% set v = (guard_trace | trim).split('|')[5] %}
+            {{ v if v else none }}
           raw_combined_kwh: >
-            {% set site = states('sensor.evcc_marstek_combined_energy') %}
-            {% set devices = states('sensor.marstek_combined_total_grid_export') %}
-            {% if is_number(site) and (site | float) > 0 %}
-              {{ site | float | round(3) }}
-            {% elif is_number(devices) %}
-              {{ devices | float | round(3) }}
-            {% else %}
-              none
-            {% endif %}
+            {% set v = (guard_trace | trim).split('|')[6] %}
+            {{ (v | float(none)) if v else none }}
+          source_used: >
+            {% set v = (guard_trace | trim).split('|')[7] %}
+            {{ v if v else none }}
           direction: discharge
           max_step_kwh: 0.25
-
   - triggers:
       - trigger: state
-        entity_id: sensor.marstek_combined_total_grid_import
+        entity_id:
+          - sensor.evcc_marstek_combined_returnenergy
+          - sensor.evcc_marstek_alpha_returnenergy
+          - sensor.evcc_marstek_beta_returnenergy
+          - sensor.marstek_combined_total_grid_import
         to: null
+      - trigger: time_pattern
+        minutes: "/5"
       - trigger: homeassistant
         event: start
     sensor:
@@ -252,34 +388,202 @@ template:
         device_class: energy
         state_class: total_increasing
         availability: >
-          {{ is_number(states('sensor.marstek_combined_total_grid_import'))
+          {{ is_number(states('sensor.evcc_marstek_combined_returnenergy'))
+             or (is_number(states('sensor.evcc_marstek_alpha_returnenergy'))
+                 and is_number(states('sensor.evcc_marstek_beta_returnenergy')))
+             or is_number(states('sensor.marstek_combined_total_grid_import'))
              or is_number(this.state) }}
-        state: >
+        state: |
+          {% set prev_re = this.attributes.get('rebaselined_at', '') %}
+          {% set g = namespace(
+            candidate=none,
+            source='',
+            state=none,
+            status='source_unavailable',
+            offset=this.attributes.get('offset_kwh', 0) | float(0),
+            pending_since='',
+            pending_candidate='',
+            pending_reason='',
+            rebaselined_at=prev_re if prev_re not in [none, 'none', 'None'] else '',
+            restart=true,
+            delta=0,
+            src_step=0,
+            age=0,
+            raw=''
+          ) %}
+
+          {% set site = states('sensor.evcc_marstek_combined_returnenergy') %}
+          {% set alpha = states('sensor.evcc_marstek_alpha_returnenergy') %}
+          {% set beta = states('sensor.evcc_marstek_beta_returnenergy') %}
           {% set integral = states('sensor.marstek_combined_total_grid_import') %}
-          {% set candidate = integral | float | round(3) if is_number(integral) else none %}
-          {% set previous = this.state %}
-          {% if candidate is none %}
-            {{ previous if is_number(previous) else none }}
-          {% elif not is_number(previous) or (previous | float) == 0 %}
-            {{ candidate }}
-          {% else %}
-            {% set delta = candidate - (previous | float) %}
-            {{ candidate if 0 <= delta <= 0.25 else previous }}
+          {% if is_number(site) and (site | float) > 0 %}
+            {% set g.candidate = (site | float) | round(3) %}
+            {% set g.source = 'returnenergy_site' %}
+          {% elif is_number(alpha) and is_number(beta) and ((alpha | float) + (beta | float)) > 0 %}
+            {% set g.candidate = ((alpha | float) + (beta | float)) | round(3) %}
+            {% set g.source = 'returnenergy_devices' %}
+          {% elif is_number(integral) %}
+            {% set g.candidate = (integral | float) | round(3) %}
+            {% set g.source = 'charge_integral' %}
           {% endif %}
-        attributes:
-          guard_status: >
-            {% set integral = states('sensor.marstek_combined_total_grid_import') %}
-            {% if not is_number(integral) %}
-              source_unavailable
-            {% elif not is_number(this.state) or (this.state | float) == 0 %}
-              initializing
-            {% else %}
-              {% set delta = (integral | float | round(3)) - (this.state | float) %}
-              {% if delta < 0 %}rejected_decrease{% elif delta > 0.25 %}rejected_jump{% else %}ok{% endif %}
+
+          {% if g.candidate is not none %}
+            {% set g.raw = g.candidate %}
+          {% endif %}
+          {% if g.candidate is none %}
+            {% if is_number(this.state) %}
+              {% set g.state = this.state | float %}
             {% endif %}
-          raw_combined_kwh: >
+            {% set g.status = 'source_unavailable' %}
+          {% elif not is_number(this.state) or (this.state | float) == 0 %}
+            {% set g.state = g.candidate %}
+            {% set g.status = 'initializing' %}
+            {% set g.offset = 0 %}
+          {% else %}
+            {% set g.delta = (((g.candidate - g.offset) | round(3)) - (this.state | float)) | round(5) %}
+            {% if g.delta >= 0 and g.delta <= 0.25 %}
+              {% set g.state = (g.candidate - g.offset) | round(3) %}
+              {% set g.status = 'ok' %}
+            {% else %}
+              {% set g.pending_reason = 'rejected_decrease' if g.delta < 0 else 'rejected_jump' %}
+              {% set g.restart = true %}
+              {% if this.attributes.get('pending_since', '') and is_number(this.attributes.get('pending_candidate', '')) %}
+                {% set g.src_step = (g.candidate - (this.attributes.get('pending_candidate') | float)) | round(5) %}
+                {% if g.src_step >= -0.001 and g.src_step <= 0.25 %}
+                  {% set g.restart = false %}
+                {% endif %}
+              {% endif %}
+              {% if g.restart %}
+                {% set g.state = this.state | float %}
+                {% set g.status = 'pending_rebaseline' %}
+                {% set g.pending_since = now().isoformat() %}
+                {% set g.pending_candidate = g.candidate %}
+              {% else %}
+                {% set g.age = as_timestamp(now()) - as_timestamp(this.attributes.get('pending_since')) %}
+                {% if g.age >= 1800 %}
+                  {% set g.state = (this.state | float) | round(3) %}
+                  {% set g.offset = (g.candidate - (this.state | float)) | round(6) %}
+                  {% set g.status = 'rebaselined' %}
+                  {% set g.pending_since = '' %}
+                  {% set g.pending_candidate = '' %}
+                  {% set g.pending_reason = '' %}
+                  {% set g.rebaselined_at = now().isoformat() %}
+                {% else %}
+                  {% set g.state = this.state | float %}
+                  {% set g.status = 'pending_rebaseline' %}
+                  {% set g.pending_since = this.attributes.get('pending_since') %}
+                  {% set g.pending_candidate = g.candidate %}
+                {% endif %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+          {{ g.state if g.state is not none else none }}
+        attributes:
+          guard_trace: |
+            {% set prev_re = this.attributes.get('rebaselined_at', '') %}
+            {% set g = namespace(
+              candidate=none,
+              source='',
+              state=none,
+              status='source_unavailable',
+              offset=this.attributes.get('offset_kwh', 0) | float(0),
+              pending_since='',
+              pending_candidate='',
+              pending_reason='',
+              rebaselined_at=prev_re if prev_re not in [none, 'none', 'None'] else '',
+              restart=true,
+              delta=0,
+              src_step=0,
+              age=0,
+              raw=''
+            ) %}
+
+            {% set site = states('sensor.evcc_marstek_combined_returnenergy') %}
+            {% set alpha = states('sensor.evcc_marstek_alpha_returnenergy') %}
+            {% set beta = states('sensor.evcc_marstek_beta_returnenergy') %}
             {% set integral = states('sensor.marstek_combined_total_grid_import') %}
-            {{ integral | float | round(3) if is_number(integral) else none }}
+            {% if is_number(site) and (site | float) > 0 %}
+              {% set g.candidate = (site | float) | round(3) %}
+              {% set g.source = 'returnenergy_site' %}
+            {% elif is_number(alpha) and is_number(beta) and ((alpha | float) + (beta | float)) > 0 %}
+              {% set g.candidate = ((alpha | float) + (beta | float)) | round(3) %}
+              {% set g.source = 'returnenergy_devices' %}
+            {% elif is_number(integral) %}
+              {% set g.candidate = (integral | float) | round(3) %}
+              {% set g.source = 'charge_integral' %}
+            {% endif %}
+
+            {% if g.candidate is not none %}
+              {% set g.raw = g.candidate %}
+            {% endif %}
+            {% if g.candidate is none %}
+              {% if is_number(this.state) %}
+                {% set g.state = this.state | float %}
+              {% endif %}
+              {% set g.status = 'source_unavailable' %}
+            {% elif not is_number(this.state) or (this.state | float) == 0 %}
+              {% set g.state = g.candidate %}
+              {% set g.status = 'initializing' %}
+              {% set g.offset = 0 %}
+            {% else %}
+              {% set g.delta = (((g.candidate - g.offset) | round(3)) - (this.state | float)) | round(5) %}
+              {% if g.delta >= 0 and g.delta <= 0.25 %}
+                {% set g.state = (g.candidate - g.offset) | round(3) %}
+                {% set g.status = 'ok' %}
+              {% else %}
+                {% set g.pending_reason = 'rejected_decrease' if g.delta < 0 else 'rejected_jump' %}
+                {% set g.restart = true %}
+                {% if this.attributes.get('pending_since', '') and is_number(this.attributes.get('pending_candidate', '')) %}
+                  {% set g.src_step = (g.candidate - (this.attributes.get('pending_candidate') | float)) | round(5) %}
+                  {% if g.src_step >= -0.001 and g.src_step <= 0.25 %}
+                    {% set g.restart = false %}
+                  {% endif %}
+                {% endif %}
+                {% if g.restart %}
+                  {% set g.state = this.state | float %}
+                  {% set g.status = 'pending_rebaseline' %}
+                  {% set g.pending_since = now().isoformat() %}
+                  {% set g.pending_candidate = g.candidate %}
+                {% else %}
+                  {% set g.age = as_timestamp(now()) - as_timestamp(this.attributes.get('pending_since')) %}
+                  {% if g.age >= 1800 %}
+                    {% set g.state = (this.state | float) | round(3) %}
+                    {% set g.offset = (g.candidate - (this.state | float)) | round(6) %}
+                    {% set g.status = 'rebaselined' %}
+                    {% set g.pending_since = '' %}
+                    {% set g.pending_candidate = '' %}
+                    {% set g.pending_reason = '' %}
+                    {% set g.rebaselined_at = now().isoformat() %}
+                  {% else %}
+                    {% set g.state = this.state | float %}
+                    {% set g.status = 'pending_rebaseline' %}
+                    {% set g.pending_since = this.attributes.get('pending_since') %}
+                    {% set g.pending_candidate = g.candidate %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endif %}
+            {{ g.status }}|{{ g.offset }}|{{ g.pending_since }}|{{ g.pending_candidate }}|{{ g.pending_reason }}|{{ g.rebaselined_at }}|{{ g.raw }}|{{ g.source }}|{{ g.state if g.state is not none else '' }}
+          guard_status: "{{ (guard_trace | trim).split('|')[0] }}"
+          offset_kwh: "{{ ((guard_trace | trim).split('|')[1]) | float(0) }}"
+          pending_since: >
+            {% set v = (guard_trace | trim).split('|')[2] %}
+            {{ v if v else none }}
+          pending_candidate: >
+            {% set v = (guard_trace | trim).split('|')[3] %}
+            {{ (v | float(none)) if v else none }}
+          pending_reason: >
+            {% set v = (guard_trace | trim).split('|')[4] %}
+            {{ v if v else none }}
+          rebaselined_at: >
+            {% set v = (guard_trace | trim).split('|')[5] %}
+            {{ v if v else none }}
+          raw_combined_kwh: >
+            {% set v = (guard_trace | trim).split('|')[6] %}
+            {{ (v | float(none)) if v else none }}
+          source_used: >
+            {% set v = (guard_trace | trim).split('|')[7] %}
+            {{ v if v else none }}
           direction: charge
           max_step_kwh: 0.25
 
