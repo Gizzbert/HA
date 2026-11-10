@@ -4,7 +4,7 @@ default_config:
 ### Includes ###
 # `automation:` is the file the UI edits (automations.yaml).
 # `automation split:` is the same integration; the label only lets both load.
-automation: !include automations.yaml
+# automation: !include automations.yaml
 automation split: !include_dir_merge_list automations/
 mqtt: !include mqtt.yaml
 group: !include groups.yaml
