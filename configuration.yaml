@@ -173,6 +173,17 @@ input_boolean:
     icon: mdi:motion-sensor
     initial: off
 
+# Fixed 3 minutes from the moment the tuinkamer automation turns the lights
+# on. Later motion does not restart it. restore is false: after a restart
+# the timer is idle, and the vlag-wissen automation turns the lights off if
+# this automation still owns them.
+timer:
+  party_lights_tuinkamer:
+    name: Partyverlichting tuinkamer
+    duration: "00:03:00"
+    restore: false
+    icon: mdi:timer-outline
+
 input_number:
   marstek_min_soc_night:
     name: Marstek Minimum SoC Night
