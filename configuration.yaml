@@ -256,13 +256,6 @@ recorder:
   purge_keep_days: 10          # of 14
   commit_interval: 30
   exclude:
-    entity_globs:
-      - sensor.*uptime*
-      - sensor.*rssi*
-      - sensor.*vcc*
-      - sensor.*interval*
-      - sensor.licht_huiskamer
-      - binary_sensor.*keepalive*
     domains:
       - device_tracker
       - media_player
@@ -270,6 +263,12 @@ recorder:
       - time_date
       - worldclock
     entity_globs:
+      - sensor.*uptime*
+      - sensor.*rssi*
+      - sensor.*vcc*
+      - sensor.*interval*
+      - sensor.licht_huiskamer
+      - binary_sensor.*keepalive*
       - sensor.clock*
       - sensor.date*
       - sensor.glances*
@@ -287,6 +286,10 @@ recorder:
       - sensor.processor_use
       - weather.openweathermap
       - sun.sun
+      # Attributes exceed the recorder's 16 KB limit and are already dropped.
+      # Apexcharts reads these attributes live; nothing uses their history.
+      - sensor.nextenergy_prices_today
+      - sensor.nextenergy_electricity_export_tariff
 
 ###### ALARM Control Panel
 alarm_control_panel:

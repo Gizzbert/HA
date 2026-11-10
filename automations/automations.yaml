@@ -411,11 +411,8 @@
   alias: 'Alert: Kwh price < 0'
   description: ''
   triggers:
-  - type: value
-    device_id: abb10be15d6a2b7804c1df25013a8a0c
-    entity_id: e86d67dfe4bb5a8a21f98ef1f4b50e83
-    domain: sensor
-    trigger: device
+  - trigger: numeric_state
+    entity_id: sensor.nextenergy_electricity_all_in
     below: 0
     for:
       hours: 0
@@ -501,20 +498,3 @@
       option: Hoog
   mode: single
 
-- alias: Refresh electricity prices
-  id: refresh_electricity_prices
-  trigger:
-  - platform: time
-    at: 00:00:10
-  - platform: time
-    at: '15:00:00'
-  - platform: time
-    at: '16:00:00'
-  - platform: homeassistant
-    event: start
-  action:
-  - service: homeassistant.update_entity
-    target:
-      entity_id:
-      - sensor.enever_electricity_prices_today_2
-      - sensor.enever_electricity_prices_tomorrow_2
