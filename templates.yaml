@@ -188,31 +188,60 @@
         {% endfor %}
         {{ ns.found }}
       state: >
-        {# Must match the components in the import sensor #}
-        {% set import_fee = 0.02190 %}
-        {% set import_energy_tax = 0.11084 %}
-        {% set export_fee = 0.01000 %}
+        {# VAT convention, unchanged: sensor.nextenergy_prices_today stores
+           (EPEX EUR/MWh / 1000) * 1.21 + purchase fee incl. VAT + energy tax incl. VAT.
+           VAT (21%) is applied only to the EPEX price. The two constants below are
+           already incl. VAT and are subtracted back out, leaving EPEX * 1.21.
+           Contract 240023: verkoopvergoeding is €0.00/kWh from 2026-11-13 (was €0.01).
+           Zonnebonus art. 10 is 50% of that same EPEX * 1.21 basis, local 06:00–22:00,
+           only when the basis is positive, and only from the new contract.
+           The 6,000 kWh/year cap is not modelled. Battery export does not earn the bonus. #}
+        {% set purchase_fee_incl_vat = 0.02190 %}
+        {% set energy_tax_incl_vat = 0.11084 %}
+        {% set export_fee_before = 0.01000 %}
+        {% set export_fee_from = 0.00000 %}
+        {% set contract_start = '2026-11-13' %}
+        {% set zonnebonus_rate = 0.50 %}
+        {% set bonus_from_hour = 6 %}
+        {% set bonus_until_hour = 22 %}
         {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
         {% set current = as_timestamp(now()) %}
         {% set ns = namespace(value=none) %}
         {% for item in prices %}
           {% if as_timestamp(item.start) <= current < as_timestamp(item.end) %}
-            {% set ns.value = ((item.price | float) - import_fee - import_energy_tax - export_fee) | round(5) %}
+            {% set slot = as_local(as_datetime(item.start)) %}
+            {% set on_contract = slot.strftime('%Y-%m-%d') >= contract_start %}
+            {% set export_fee = export_fee_from if on_contract else export_fee_before %}
+            {% set epex_incl_vat = (item.price | float) - purchase_fee_incl_vat - energy_tax_incl_vat %}
+            {% set in_bonus_window = bonus_from_hour <= slot.hour < bonus_until_hour %}
+            {% set bonus = zonnebonus_rate * epex_incl_vat if on_contract and in_bonus_window and epex_incl_vat > 0 else 0 %}
+            {% set ns.value = (epex_incl_vat - export_fee + bonus) | round(5) %}
           {% endif %}
         {% endfor %}
         {{ ns.value }}
       attributes:
         prices: >
-          {% set import_fee = 0.02190 %}
-          {% set import_energy_tax = 0.11084 %}
-          {% set export_fee = 0.01000 %}
+          {% set purchase_fee_incl_vat = 0.02190 %}
+          {% set energy_tax_incl_vat = 0.11084 %}
+          {% set export_fee_before = 0.01000 %}
+          {% set export_fee_from = 0.00000 %}
+          {% set contract_start = '2026-11-13' %}
+          {% set zonnebonus_rate = 0.50 %}
+          {% set bonus_from_hour = 6 %}
+          {% set bonus_until_hour = 22 %}
           {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
           {% set ns = namespace(items=[]) %}
           {% for item in prices %}
+            {% set slot = as_local(as_datetime(item.start)) %}
+            {% set on_contract = slot.strftime('%Y-%m-%d') >= contract_start %}
+            {% set export_fee = export_fee_from if on_contract else export_fee_before %}
+            {% set epex_incl_vat = (item.price | float) - purchase_fee_incl_vat - energy_tax_incl_vat %}
+            {% set in_bonus_window = bonus_from_hour <= slot.hour < bonus_until_hour %}
+            {% set bonus = zonnebonus_rate * epex_incl_vat if on_contract and in_bonus_window and epex_incl_vat > 0 else 0 %}
             {% set ns.items = ns.items + [{
               'start': item.start,
               'end': item.end,
-              'price': ((item.price | float) - import_fee - import_energy_tax - export_fee) | round(5)
+              'price': (epex_incl_vat - export_fee + bonus) | round(5)
             }] %}
           {% endfor %}
           {{ ns.items }}
