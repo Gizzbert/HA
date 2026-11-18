@@ -94,6 +94,54 @@
         {% set energy_tax_incl_vat = 0.11084 %}
         {{ (market * 1.21 + purchase_fee_incl_vat + energy_tax_incl_vat) | round(5) }}
 
+# Current all-in slot. The series already lives on sensor.nextenergy_prices_today
+# (Nord Pool, today and tomorrow, 15-minute slots). This publishes the slot that
+# contains now, and repeats that series as {from, price} with `from` set to the
+# slot start. unique_id is unchanged.
+# No `to: null`: the price list lives on the attribute and must still be heard.
+- triggers:
+    - trigger: state
+      entity_id: sensor.nextenergy_prices_today
+    - trigger: time_pattern
+      minutes: "/15"
+    - trigger: homeassistant
+      event: start
+  sensor:
+    - name: "NextEnergy current price"
+      unique_id: nextenergy_current_price
+      unit_of_measurement: "EUR/kWh"
+      device_class: monetary
+      availability: >
+        {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
+        {% set current = as_timestamp(now()) %}
+        {% set ns = namespace(value=none) %}
+        {% for item in prices %}
+          {% if item.start is defined and item.end is defined and as_timestamp(item.start) <= current < as_timestamp(item.end) %}
+            {% set ns.value = item.price | float(none) %}
+          {% endif %}
+        {% endfor %}
+        {{ is_number(ns.value) }}
+      state: >
+        {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
+        {% set current = as_timestamp(now()) %}
+        {% set ns = namespace(value=none) %}
+        {% for item in prices %}
+          {% if item.start is defined and item.end is defined and as_timestamp(item.start) <= current < as_timestamp(item.end) %}
+            {% set ns.value = item.price | float(none) %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.value }}
+      attributes:
+        prices: >
+          {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
+          {% set ns = namespace(items=[]) %}
+          {% for item in prices %}
+            {% if item.start is defined and is_number(item.price) %}
+              {% set ns.items = ns.items + [{'from': item.start, 'price': item.price | float}] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.items }}
+
 # Current 15-minute export slot. The price list is an attribute of
 # sensor.nextenergy_prices_today, so the state trigger must hear attributes.
 # Quarter-hour clock replaces the per-minute now() listener. NL day-ahead
