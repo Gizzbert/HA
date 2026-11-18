@@ -94,21 +94,16 @@
         {% set energy_tax_incl_vat = 0.11084 %}
         {{ (market * 1.21 + purchase_fee_incl_vat + energy_tax_incl_vat) | round(5) }}
 
-# The Enever `data` list is the source. Indexing it with now().hour at
-# second 0 of the hour writes the string "unknown" whenever the list is
-# missing or not yet aligned to the new hour, and a monetary sensor rejects
-# that. Resolve the row whose `datum` falls in the current hour (hour-index
-# fallback), render nothing when that is not a number, and re-evaluate a
-# few seconds after the hour so a refresh that lands at :00:10 is visible.
+# Current all-in slot. The series already lives on sensor.nextenergy_prices_today
+# (Nord Pool, today and tomorrow, 15-minute slots). This publishes the slot that
+# contains now, and repeats that series as {from, price} with `from` set to the
+# slot start. unique_id is unchanged.
 # No `to: null`: the price list lives on the attribute and must still be heard.
 - triggers:
     - trigger: state
-      entity_id:
-        - sensor.enever_electricity_prices_today_2
-        - sensor.enever_electricity_prices_tomorrow_2
+      entity_id: sensor.nextenergy_prices_today
     - trigger: time_pattern
-      minutes: 0
-      seconds: 30
+      minutes: "/15"
     - trigger: homeassistant
       event: start
   sensor:
@@ -117,45 +112,32 @@
       unit_of_measurement: "EUR/kWh"
       device_class: monetary
       availability: >
-        {% set rows = state_attr('sensor.enever_electricity_prices_today_2', 'data') or [] %}
-        {% set start = as_timestamp(now().replace(minute=0, second=0, microsecond=0)) %}
+        {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
+        {% set current = as_timestamp(now()) %}
         {% set ns = namespace(value=none) %}
-        {% for r in rows %}
-          {% if r is mapping and r.prijsNE is defined and r.datum is defined %}
-            {% set stamp = as_timestamp(r.datum, none) %}
-            {% if stamp is not none and start <= stamp < start + 3600 %}
-              {% set ns.value = r.prijsNE | float(none) %}
-            {% endif %}
+        {% for item in prices %}
+          {% if item.start is defined and item.end is defined and as_timestamp(item.start) <= current < as_timestamp(item.end) %}
+            {% set ns.value = item.price | float(none) %}
           {% endif %}
         {% endfor %}
-        {% if ns.value is none and rows | length > now().hour and rows[now().hour] is mapping and rows[now().hour].prijsNE is defined %}
-          {% set ns.value = rows[now().hour].prijsNE | float(none) %}
-        {% endif %}
         {{ is_number(ns.value) }}
       state: >
-        {% set rows = state_attr('sensor.enever_electricity_prices_today_2', 'data') or [] %}
-        {% set start = as_timestamp(now().replace(minute=0, second=0, microsecond=0)) %}
+        {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
+        {% set current = as_timestamp(now()) %}
         {% set ns = namespace(value=none) %}
-        {% for r in rows %}
-          {% if r is mapping and r.prijsNE is defined and r.datum is defined %}
-            {% set stamp = as_timestamp(r.datum, none) %}
-            {% if stamp is not none and start <= stamp < start + 3600 %}
-              {% set ns.value = r.prijsNE | float(none) %}
-            {% endif %}
+        {% for item in prices %}
+          {% if item.start is defined and item.end is defined and as_timestamp(item.start) <= current < as_timestamp(item.end) %}
+            {% set ns.value = item.price | float(none) %}
           {% endif %}
         {% endfor %}
-        {% if ns.value is none and rows | length > now().hour and rows[now().hour] is mapping and rows[now().hour].prijsNE is defined %}
-          {% set ns.value = rows[now().hour].prijsNE | float(none) %}
-        {% endif %}
         {{ ns.value }}
       attributes:
         prices: >
-          {% set today = state_attr('sensor.enever_electricity_prices_today_2', 'data') or [] %}
-          {% set tomorrow = state_attr('sensor.enever_electricity_prices_tomorrow_2', 'data') or [] %}
+          {% set prices = state_attr('sensor.nextenergy_prices_today', 'prices') or [] %}
           {% set ns = namespace(items=[]) %}
-          {% for r in (today + tomorrow) %}
-            {% if r is mapping and r.prijsNE is defined %}
-              {% set ns.items = ns.items + [{'from': r.datum | default(none), 'price': r.prijsNE | float(0)}] %}
+          {% for item in prices %}
+            {% if item.start is defined and is_number(item.price) %}
+              {% set ns.items = ns.items + [{'from': item.start, 'price': item.price | float}] %}
             {% endif %}
           {% endfor %}
           {{ ns.items }}
